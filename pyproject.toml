@@ -1,0 +1,37 @@
+[project]
+name = "toconline-mcp"
+version = "0.1.0"
+description = "MCP server for the TOC Online accounting platform API"
+readme = "README.md"
+authors = [
+    { name = "João Vitória Silva", email = "joao.vitoria.silva@pm.me" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "keyring>=25.6.0",
+    "mcp[cli]>=1.26.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+]
+
+[project.scripts]
+toconline-mcp = "toconline_mcp.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.10.6,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",
+    "pytest-cov>=6",
+    "pytest-mock>=3.14",
+]
