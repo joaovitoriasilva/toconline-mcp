@@ -5,8 +5,9 @@ Subcommands
 ``toconline-mcp``           - (default) run the MCP server over stdio.
 ``toconline-mcp auth``      - one-time PKCE browser login; stores refresh
                              token in keychain.
-``toconline-mcp auth --status``  - check if a token is stored.
-``toconline-mcp auth --logout``  - delete the stored token.
+``toconline-mcp auth --status``     - check if a token is stored.
+``toconline-mcp auth --show-token`` - print the stored refresh token.
+``toconline-mcp auth --logout``     - delete the stored token.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from toconline_mcp.auth import exchange_code_for_tokens, make_auth_url
 from toconline_mcp.keychain import (
     delete_refresh_token,
     has_refresh_token,
+    load_refresh_token,
     store_refresh_token,
 )
 from toconline_mcp.settings import Settings, get_settings
@@ -59,6 +61,9 @@ def _run_auth(args: argparse.Namespace) -> None:
     if args.status:
         _auth_status()
         return
+    if args.show_token:
+        _auth_show_token()
+        return
     if args.logout:
         _auth_logout()
         return
@@ -78,6 +83,23 @@ def _auth_status() -> None:
             )
         else:
             print("✗ No refresh token found. Run 'toconline-mcp auth' to authenticate.")
+
+
+def _auth_show_token() -> None:
+    """Print the refresh token stored in the keychain."""
+    token = load_refresh_token()
+    if token:
+        print(token)
+    else:
+        settings = get_settings()
+        if settings.refresh_token:
+            print(settings.refresh_token)
+        else:
+            print(
+                "✗ No refresh token found. Run 'toconline-mcp auth' to authenticate.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
 
 def _auth_logout() -> None:
@@ -205,6 +227,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--status",
         action="store_true",
         help="Check if credentials are stored in the keychain.",
+    )
+    auth_group.add_argument(
+        "--show-token",
+        action="store_true",
+        help="Print the refresh token stored in the keychain (for Docker/.env use).",
     )
     auth_group.add_argument(
         "--logout",

@@ -10,6 +10,7 @@ import pytest
 from toconline_mcp.cli import (
     _auth_login,
     _auth_logout,
+    _auth_show_token,
     _auth_status,
     _build_parser,
     _extract_code,
@@ -162,11 +163,12 @@ class TestBuildParser:
     """Tests for the ArgumentParser structure returned by _build_parser()."""
 
     def test_parser_auth_subcommand_exists(self) -> None:
-        """Parsing ['auth'] sets command='auth' with both flags False."""
+        """Parsing ['auth'] sets command='auth' with all flags False."""
         parser = _build_parser()
         args = parser.parse_args(["auth"])
         assert args.command == "auth"
         assert args.status is False
+        assert args.show_token is False
         assert args.logout is False
 
     def test_parser_auth_status_flag(self) -> None:
@@ -174,6 +176,12 @@ class TestBuildParser:
         parser = _build_parser()
         args = parser.parse_args(["auth", "--status"])
         assert args.status is True
+
+    def test_parser_auth_show_token_flag(self) -> None:
+        """Parsing ['auth', '--show-token'] sets args.show_token to True."""
+        parser = _build_parser()
+        args = parser.parse_args(["auth", "--show-token"])
+        assert args.show_token is True
 
     def test_parser_auth_logout_flag(self) -> None:
         """Parsing ['auth', '--logout'] sets args.logout to True."""
@@ -187,13 +195,23 @@ class TestBuildParser:
         args = parser.parse_args([])
         assert args.command is None
 
-    def test_parser_auth_status_and_logout_mutually_exclusive(
-        self,
-    ) -> None:
+    def test_parser_auth_status_and_logout_mutually_exclusive(self) -> None:
         """Passing both --status and --logout raises SystemExit."""
         parser = _build_parser()
         with pytest.raises(SystemExit):
             parser.parse_args(["auth", "--status", "--logout"])
+
+    def test_parser_auth_show_token_and_status_mutually_exclusive(self) -> None:
+        """Passing both --show-token and --status raises SystemExit."""
+        parser = _build_parser()
+        with pytest.raises(SystemExit):
+            parser.parse_args(["auth", "--show-token", "--status"])
+
+    def test_parser_auth_show_token_and_logout_mutually_exclusive(self) -> None:
+        """Passing both --show-token and --logout raises SystemExit."""
+        parser = _build_parser()
+        with pytest.raises(SystemExit):
+            parser.parse_args(["auth", "--show-token", "--logout"])
 
 
 # ---------------------------------------------------------------------------
@@ -205,10 +223,13 @@ class TestRunAuth:
     """Tests for _run_auth() dispatching to the correct sub-handler."""
 
     def _make_args(
-        self, status: bool = False, logout: bool = False
+        self,
+        status: bool = False,
+        show_token: bool = False,
+        logout: bool = False,
     ) -> argparse.Namespace:
         """Return a minimal Namespace mimicking parsed auth args."""
-        return argparse.Namespace(status=status, logout=logout)
+        return argparse.Namespace(status=status, show_token=show_token, logout=logout)
 
     def test_run_auth_calls_status_when_status_flag(
         self, monkeypatch: pytest.MonkeyPatch
@@ -218,6 +239,15 @@ class TestRunAuth:
         monkeypatch.setattr("toconline_mcp.cli._auth_status", mock_status)
         _run_auth(self._make_args(status=True))
         mock_status.assert_called_once()
+
+    def test_run_auth_calls_show_token_when_show_token_flag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When args.show_token is True, _auth_show_token() is called."""
+        mock_show = MagicMock()
+        monkeypatch.setattr("toconline_mcp.cli._auth_show_token", mock_show)
+        _run_auth(self._make_args(show_token=True))
+        mock_show.assert_called_once()
 
     def test_run_auth_calls_logout_when_logout_flag(
         self, monkeypatch: pytest.MonkeyPatch
@@ -231,11 +261,58 @@ class TestRunAuth:
     def test_run_auth_calls_login_by_default(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """When both flags are False, _auth_login() is called."""
+        """When all flags are False, _auth_login() is called."""
         mock_login = MagicMock()
         monkeypatch.setattr("toconline_mcp.cli._auth_login", mock_login)
         _run_auth(self._make_args())
         mock_login.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# TestAuthShowToken
+# ---------------------------------------------------------------------------
+
+
+class TestAuthShowToken:
+    """Tests for _auth_show_token() — print the stored refresh token."""
+
+    def test_show_token_prints_keychain_token(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """When a token is in the keychain, it is printed to stdout."""
+        monkeypatch.setattr(
+            "toconline_mcp.cli.load_refresh_token", lambda: "keychain-token"
+        )
+        _auth_show_token()
+        assert capsys.readouterr().out.strip() == "keychain-token"
+
+    def test_show_token_falls_back_to_env_when_no_keychain(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """When keychain is empty but TOCONLINE_REFRESH_TOKEN is set, it is printed."""
+        monkeypatch.setattr("toconline_mcp.cli.load_refresh_token", lambda: None)
+        settings = _make_settings(refresh_token="env-token")
+        monkeypatch.setattr("toconline_mcp.cli.get_settings", lambda: settings)
+        _auth_show_token()
+        assert capsys.readouterr().out.strip() == "env-token"
+
+    def test_show_token_exits_when_no_token_anywhere(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """When no token exists anywhere, prints an error and calls sys.exit(1)."""
+        monkeypatch.setattr("toconline_mcp.cli.load_refresh_token", lambda: None)
+        settings = _make_settings(refresh_token="")
+        monkeypatch.setattr("toconline_mcp.cli.get_settings", lambda: settings)
+        with pytest.raises(SystemExit) as exc_info:
+            _auth_show_token()
+        assert exc_info.value.code == 1
+        assert "No refresh token" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------

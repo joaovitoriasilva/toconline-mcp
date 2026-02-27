@@ -67,6 +67,20 @@ After this, the MCP server renews tokens automatically — no further manual ste
 uv run toconline-mcp auth --status
 ```
 
+### Print the stored refresh token
+
+Useful for copying the token into a `.env` file for Docker or CI:
+
+```bash
+uv run toconline-mcp auth --show-token
+```
+
+Or pipe it directly into your `.env`:
+
+```bash
+echo "TOCONLINE_REFRESH_TOKEN=$(uv run toconline-mcp auth --show-token)" >> .env
+```
+
 ### Log out (remove stored credentials)
 
 ```bash
@@ -140,6 +154,12 @@ uv run toconline-mcp auth
 2. Copy the token into your `.env` file:
 
 ```bash
+echo "TOCONLINE_REFRESH_TOKEN=$(uv run toconline-mcp auth --show-token)" >> .env
+```
+
+Or set it manually:
+
+```bash
 # .env
 TOCONLINE_CLIENT_ID=your_client_id
 TOCONLINE_CLIENT_SECRET=your_client_secret
@@ -160,7 +180,7 @@ docker compose --profile readonly up
 
 ```bash
 docker build -t toconline-mcp:latest .
-docker run --env-file .env toconline-mcp:latest
+docker run -i --env-file .env toconline-mcp:latest
 ```
 
 ## Tool Modules
