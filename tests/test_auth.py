@@ -7,6 +7,7 @@ import base64
 import hashlib
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
@@ -151,13 +152,17 @@ class TestMakeAuthUrl:
         """When redirect_uri is empty, the Postman callback URI should be used."""
         settings = _make_test_settings(redirect_uri="")
         url, _, _ = make_auth_url(settings)
-        assert "oauth.pstmn.io" in url
+        query = parse_qs(urlparse(url).query)
+        redirect_uri = query.get("redirect_uri", [""])[0]
+        assert urlparse(redirect_uri).hostname == "oauth.pstmn.io"
 
     def test_auth_url_uses_configured_redirect_uri(self) -> None:
         """When redirect_uri is set in settings, it must appear in the URL."""
         settings = _make_test_settings(redirect_uri="https://myapp.com/callback")
         url, _, _ = make_auth_url(settings)
-        assert "myapp.com" in url
+        query = parse_qs(urlparse(url).query)
+        redirect_uri = query.get("redirect_uri", [""])[0]
+        assert urlparse(redirect_uri).hostname == "myapp.com"
 
 
 # ---------------------------------------------------------------------------
