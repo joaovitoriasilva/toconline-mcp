@@ -1,17 +1,27 @@
 """MCP tools for managing TOC Online Purchase Payments.
 
 Endpoints covered:
-  GET    /api/v1/commercial_purchases_payments              -> list_purchase_payments
-  GET    /api/v1/commercial_purchases_payments/{id}         -> get_purchase_payment
-  POST   /api/v1/commercial_purchases_payments              -> create_purchase_payment  (flat JSON body)
-  PATCH  /api/commercial_purchases_payments/{id}            -> update_purchase_payment  (legacy path, JSON:API body)
-  DELETE /api/commercial_purchases_payments/{id}            -> delete_purchase_payment  (legacy path)
-  PATCH  /api/v1/commercial_purchases_payments/             -> finalize payment (not exposed as tool)
-  DELETE /api/v1/commercial_purchases_payments/             -> bulk remove payments (not exposed as tool)
-  DELETE /api/v1/commercial_purchases_payment_lines/        -> remove payment lines (not exposed as tool)
+  GET    /api/v1/commercial_purchases_payments
+    -> list_purchase_payments
+  GET    /api/v1/commercial_purchases_payments/{id}
+    -> get_purchase_payment
+  POST   /api/v1/commercial_purchases_payments
+    -> create_purchase_payment  (flat JSON body)
+  PATCH  /api/commercial_purchases_payments/{id}
+    -> update_purchase_payment  (legacy path, JSON:API body)
+  DELETE /api/commercial_purchases_payments/{id}
+    -> delete_purchase_payment  (legacy path)
+  PATCH  /api/v1/commercial_purchases_payments/
+    -> finalize payment (not exposed as tool)
+  DELETE /api/v1/commercial_purchases_payments/
+    -> bulk remove payments (not exposed as tool)
+  DELETE /api/v1/commercial_purchases_payment_lines/
+    -> remove payment lines (not exposed as tool)
 
-  GET    /api/commercial_purchases_payment_lines            -> list_purchase_payment_lines
-  POST   /api/commercial_purchases_payment_lines            -> create_purchase_payment_line
+  GET    /api/commercial_purchases_payment_lines
+    -> list_purchase_payment_lines
+  POST   /api/commercial_purchases_payment_lines
+    -> create_purchase_payment_line
 
 A purchase payment («Pagamento a Fornecedor») records payment against one or more
 finalized purchase documents. Each payment line links to a payable (usually a
@@ -28,10 +38,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -49,7 +59,8 @@ class PurchasePaymentAttributes(BaseModel):
     document_series_id: Annotated[
         int,
         Field(
-            description="Payment document series ID from /api/commercial_document_series."
+            description="Payment document series ID from"
+            " /api/commercial_document_series."
         ),
     ]
     gross_total: Annotated[
@@ -63,14 +74,16 @@ class PurchasePaymentAttributes(BaseModel):
     payment_mechanism: Annotated[
         str,
         Field(
-            description="Payment mechanism code (e.g. 'TB' = bank transfer, 'MO' = cash)."
+            description="Payment mechanism code (e.g. 'TB' = bank transfer,"
+            " 'MO' = cash)."
         ),
     ]
     supplier_id: Annotated[
         int | None,
         Field(
             default=None,
-            description="Supplier ID from /api/suppliers. Preferred over third_party_id for the v1 endpoint.",
+            description="Supplier ID from /api/suppliers. Preferred over"
+            " third_party_id for the v1 endpoint.",
         ),
     ] = None
     third_party_id: Annotated[
@@ -81,7 +94,8 @@ class PurchasePaymentAttributes(BaseModel):
         str | None,
         Field(
             default=None,
-            description="Third-party type — typically 'Supplier'. Only needed when using third_party_id.",
+            description="Third-party type — typically 'Supplier'. Only needed"
+            " when using third_party_id.",
         ),
     ] = None
     cash_account_id: Annotated[
@@ -98,14 +112,16 @@ class PurchasePaymentAttributes(BaseModel):
         int | None,
         Field(
             default=None,
-            description="Currency ID from /api/currencies. Defaults to the company base currency.",
+            description="Currency ID from /api/currencies. Defaults to the"
+            " company base currency.",
         ),
     ] = None
     currency_conversion_rate: Annotated[
         float | None,
         Field(
             default=None,
-            description="Exchange rate relative to base currency. Omit (or set 1.0) for base currency payments.",
+            description="Exchange rate relative to base currency. Omit (or set"
+            " 1.0) for base currency payments.",
         ),
     ] = None
     observations: Annotated[
@@ -153,8 +169,10 @@ class PurchasePaymentLineAttributes(BaseModel):
         str,
         Field(
             description=(
-                "Type of the payable. Use 'Purchases::Document' to settle a purchase document "
-                "or 'Purchases::DocumentLine' to settle a specific purchase document line."
+                "Type of the payable. Use 'Purchases::Document' to settle a"
+                " purchase document "
+                "or 'Purchases::DocumentLine' to settle a specific purchase"
+                " document line."
             )
         ),
     ]
@@ -227,7 +245,7 @@ async def list_purchase_payments(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"list_purchase_payments failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -245,7 +263,8 @@ async def get_purchase_payment(
         str, Field(description="The TOC Online purchase payment ID.")
     ],
 ) -> dict[str, Any]:
-    """Return a single purchase payment by ID including all attributes and line references."""
+    """Return a single purchase payment by ID including all attributes
+    and line references."""
     client = get_client(ctx)
     validate_resource_id(payment_id, "payment_id")
     try:
@@ -254,7 +273,7 @@ async def get_purchase_payment(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"get_purchase_payment({payment_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     return {"id": item.get("id"), **item.get("attributes", {})}
@@ -288,7 +307,7 @@ async def create_purchase_payment(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"create_purchase_payment failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Purchase payment created with id={item.get('id')}")
@@ -320,14 +339,15 @@ async def update_purchase_payment(
         }
     }
     try:
-        # UPDATE uses the legacy path — the v1 PATCH at /api/v1/commercial_purchases_payments/ is
+        # UPDATE uses the legacy path — the v1 PATCH at
+        # /api/v1/commercial_purchases_payments/ is
         # for bulk/finalize operations, not per-record updates.
         response = await client.patch(
             f"/api/commercial_purchases_payments/{payment_id}", json=payload
         )
     except TOCOnlineError as exc:
         await ctx.error(f"update_purchase_payment({payment_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Purchase payment {payment_id} updated")
@@ -348,14 +368,15 @@ async def delete_purchase_payment(
     client = get_client(ctx)
     validate_resource_id(payment_id, "payment_id")
     try:
-        # DELETE uses the legacy path — the v1 DELETE at /api/v1/commercial_purchases_payments/ is
+        # DELETE uses the legacy path — the v1 DELETE at
+        # /api/v1/commercial_purchases_payments/ is
         # a bulk remove, not per-record.
         response = await client.delete(
             f"/api/commercial_purchases_payments/{payment_id}"
         )
     except TOCOnlineError as exc:
         await ctx.error(f"delete_purchase_payment({payment_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Purchase payment {payment_id} deleted")
     return response.get("meta", {"result": "deleted"})
@@ -394,7 +415,7 @@ async def list_purchase_payment_lines(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"list_purchase_payment_lines failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -433,7 +454,7 @@ async def create_purchase_payment_line(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"create_purchase_payment_line failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Purchase payment line created with id={item.get('id')}")

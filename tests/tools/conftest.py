@@ -14,7 +14,7 @@ import pytest
 
 
 @pytest.fixture
-def mock_ctx(mock_ctx):  # noqa: F811 — intentionally shadows the root fixture
+def mock_ctx(mock_ctx):
     """Override mock_ctx so async ctx methods (error, info) are awaitable."""
     mock_ctx.error = AsyncMock()
     mock_ctx.info = AsyncMock()

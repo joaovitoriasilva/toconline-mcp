@@ -7,8 +7,8 @@ delete_contact for happy paths, error propagation, and API path verification.
 from __future__ import annotations
 
 import pytest
-
 from mcp.server.fastmcp.exceptions import ToolError
+
 from toconline_mcp.client import TOCOnlineError
 from toconline_mcp.tools.contacts import (
     ContactAttributes,
@@ -29,7 +29,8 @@ class TestListContacts:
     """Tests for the list_contacts read tool."""
 
     async def test_returns_list_of_contacts(self, mock_ctx, mock_api_client):
-        """Happy path: JSON:API response is flattened into a list of {id, **attributes}."""
+        """Happy path: JSON:API response is flattened into a list of
+        {id, **attributes}."""
         mock_api_client.get.return_value = {
             "data": [
                 {"id": "1", "attributes": {"email": "a@test.pt", "name": "Ana"}},

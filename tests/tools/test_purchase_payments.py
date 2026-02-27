@@ -8,8 +8,8 @@ propagation, and API path verification.
 from __future__ import annotations
 
 import pytest
-
 from mcp.server.fastmcp.exceptions import ToolError
+
 from toconline_mcp.client import TOCOnlineError
 from toconline_mcp.tools.purchase_payments import (
     PurchasePaymentAttributes,

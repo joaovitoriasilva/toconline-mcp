@@ -17,10 +17,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -43,7 +43,8 @@ class CustomerAttributes(BaseModel):
     tax_registration_number: Annotated[
         str,
         Field(
-            description="NIF (Portuguese tax identification number) or foreign equivalent."
+            description="NIF (Portuguese tax identification number) or foreign"
+            " equivalent."
         ),
     ]
     contact_name: Annotated[
@@ -54,7 +55,8 @@ class CustomerAttributes(BaseModel):
         str | None,
         Field(default=None, description="Customer email address."),
     ] = None
-    # Note: spec shows POST body as number, PATCH body as string — str | int covers both.
+    # Note: spec shows POST body as number, PATCH body as string —
+    # str | int covers both.
     phone_number: Annotated[
         str | int | None,
         Field(default=None, description="Landline phone number."),
@@ -99,7 +101,8 @@ class CustomerAttributes(BaseModel):
         bool | None,
         Field(
             default=None,
-            description="True if the customer is a business (B2B), not a final consumer.",
+            description="True if the customer is a business (B2B), not a final"
+            " consumer.",
         ),
     ] = None
     cashed_vat: Annotated[
@@ -142,14 +145,16 @@ async def list_customers(
         str | None,
         Field(
             default=None,
-            description="Filter by customer name (partial match). Maps to filter[business_name].",
+            description="Filter by customer name (partial match). Maps to"
+            " filter[business_name].",
         ),
     ] = None,
     tax_registration_number: Annotated[
         str | None,
         Field(
             default=None,
-            description="Filter by NIF / tax number (exact match). Maps to filter[tax_registration_number].",
+            description="Filter by NIF / tax number (exact match). Maps to"
+            " filter[tax_registration_number].",
         ),
     ] = None,
     page: Annotated[
@@ -186,7 +191,7 @@ async def list_customers(
         response = await client.get("/api/customers", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_customers failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -209,7 +214,7 @@ async def get_customer(
         response = await client.get(f"/api/customers/{customer_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"get_customer({customer_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     return {"id": item.get("id"), **item.get("attributes", {})}
@@ -239,7 +244,7 @@ async def create_customer(
         response = await client.post("/api/customers", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_customer failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Customer created with id={item.get('id')}")
@@ -274,7 +279,7 @@ async def update_customer(
         response = await client.patch("/api/customers", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"update_customer({customer_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Customer {customer_id} updated")
@@ -299,7 +304,7 @@ async def delete_customer(
         response = await client.delete(f"/api/customers/{customer_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"delete_customer({customer_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Customer {customer_id} deleted")
     return response.get("meta", {"result": "deleted"})

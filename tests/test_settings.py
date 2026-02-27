@@ -1,4 +1,5 @@
-"""Tests for toconline_mcp.settings: Settings defaults, module parsing, and singleton."""
+"""Tests for toconline_mcp.settings: Settings defaults, module parsing,
+and singleton."""
 
 from __future__ import annotations
 

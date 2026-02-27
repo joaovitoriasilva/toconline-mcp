@@ -16,10 +16,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,9 @@ class ServiceAttributes(BaseModel):
         str | None,
         Field(
             default=None,
-            description="VAT tax code (e.g. 'NOR', 'INT', 'RED', 'ISE'). Optional — the API resolves it automatically from item family defaults when omitted.",
+            description="VAT tax code (e.g. 'NOR', 'INT', 'RED', 'ISE')."
+            " Optional — the API resolves it automatically from item family"
+            " defaults when omitted.",
         ),
     ] = None
     sales_price: Annotated[
@@ -187,7 +189,7 @@ async def list_services(
         response = await client.get("/api/services", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_services failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -226,7 +228,7 @@ async def create_service(
         response = await client.post("/api/services", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_service failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     item = data[0] if isinstance(data, list) and data else (data or {})
@@ -262,7 +264,7 @@ async def update_service(
         response = await client.patch("/api/services", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"update_service({service_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Service {service_id} updated")
@@ -288,7 +290,7 @@ async def delete_service(
         response = await client.delete("/api/services", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"delete_service({service_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Service {service_id} deleted")
     return response.get("meta", {"result": "deleted"})

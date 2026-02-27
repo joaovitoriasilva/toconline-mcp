@@ -19,10 +19,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -40,7 +40,8 @@ class AddressAttributes(BaseModel):
     addressable_id: Annotated[
         int,
         Field(
-            description="Numeric ID of the Customer or Supplier this address belongs to."
+            description="Numeric ID of the Customer or Supplier this address"
+            " belongs to."
         ),
     ]
     addressable_type: Annotated[
@@ -134,7 +135,7 @@ async def get_address(
         response = await client.get(f"/api/addresses/{address_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"get_address({address_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     return {"id": item.get("id"), **item.get("attributes", {})}
@@ -163,7 +164,7 @@ async def create_address(
         response = await client.post("/api/addresses", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_address failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Address created with id={item.get('id')}")
@@ -198,7 +199,7 @@ async def update_address(
         response = await client.patch("/api/addresses", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"update_address({address_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Address {address_id} updated")
@@ -222,7 +223,7 @@ async def delete_address(
         response = await client.delete(f"/api/addresses/{address_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"delete_address({address_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Address {address_id} deleted")
     return response.get("meta", {"result": "deleted"})

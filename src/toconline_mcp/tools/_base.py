@@ -12,14 +12,14 @@ from __future__ import annotations
 import re
 
 from mcp.server.fastmcp import Context
-from mcp.server.fastmcp.exceptions import ToolError  # noqa: F401 — re-exported
+from mcp.server.fastmcp.exceptions import ToolError
 
 from toconline_mcp.client import (
     TOCOnlineClient,
     TOCOnlineError,
-)  # noqa: F401 — re-exported
+)
 
-__all__ = ["get_client", "validate_resource_id", "ToolError", "TOCOnlineError"]
+__all__ = ["TOCOnlineError", "ToolError", "get_client", "validate_resource_id"]
 
 # Resource IDs from TOC Online are always positive integers.
 _RESOURCE_ID_RE = re.compile(r"^\d{1,20}$")

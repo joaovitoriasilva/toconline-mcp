@@ -9,8 +9,8 @@ path verification.
 from __future__ import annotations
 
 import pytest
-
 from mcp.server.fastmcp.exceptions import ToolError
+
 from toconline_mcp.client import TOCOnlineError
 from toconline_mcp.tools.sales_documents import (
     SalesDocumentAttributes,
@@ -71,7 +71,8 @@ class TestListSalesDocuments:
         assert kwargs["params"]["filter[customer_id]"] == "42"
 
     async def test_passes_date_range_filters(self, mock_ctx, mock_api_client):
-        """date_from and date_to are forwarded as filter[date_from] and filter[date_to]."""
+        """date_from and date_to are forwarded as filter[date_from] and
+        filter[date_to]."""
         mock_api_client.get.return_value = {"data": [], "meta": {}}
         await list_sales_documents(
             mock_ctx, date_from="2025-01-01", date_to="2025-12-31"

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
-import toconline_mcp.server as server_module
 from toconline_mcp.server import _ALL_MODULES, _load_tool_modules
 from toconline_mcp.settings import Settings
-
 
 # ---------------------------------------------------------------------------
 # Helpers

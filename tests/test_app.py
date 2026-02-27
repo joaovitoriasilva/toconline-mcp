@@ -10,7 +10,6 @@ import toconline_mcp.app as app_module
 from toconline_mcp.app import _build_instructions, write_tool
 from toconline_mcp.settings import Settings
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -49,8 +48,9 @@ class TestWriteTool:
     async def test_write_tool_passes_through_when_not_read_only(
         self, monkeypatch
     ) -> None:
-        """When read_only=False the underlying function is called and its result returned."""
-        monkeypatch.setattr(app_module.mcp, "tool", lambda: (lambda f: f))
+        """When read_only=False the underlying function is called and its result
+        returned."""
+        monkeypatch.setattr(app_module.mcp, "tool", lambda: lambda f: f)
         monkeypatch.setattr(
             "toconline_mcp.app.get_settings",
             lambda: _settings(read_only=False),
@@ -65,7 +65,7 @@ class TestWriteTool:
 
     async def test_write_tool_blocked_in_read_only_mode(self, monkeypatch) -> None:
         """When read_only=True the wrapper returns an error and never calls the tool."""
-        monkeypatch.setattr(app_module.mcp, "tool", lambda: (lambda f: f))
+        monkeypatch.setattr(app_module.mcp, "tool", lambda: lambda f: f)
         monkeypatch.setattr(
             "toconline_mcp.app.get_settings",
             lambda: _settings(read_only=True),
@@ -87,8 +87,9 @@ class TestWriteTool:
         ), "Underlying function must not be called in read-only mode"
 
     async def test_write_tool_rate_limit_exceeded(self, monkeypatch) -> None:
-        """With max_write_calls_per_session=1 the first call succeeds; subsequent calls fail."""
-        monkeypatch.setattr(app_module.mcp, "tool", lambda: (lambda f: f))
+        """With max_write_calls_per_session=1 the first call succeeds; subsequent
+        calls fail."""
+        monkeypatch.setattr(app_module.mcp, "tool", lambda: lambda f: f)
         monkeypatch.setattr(
             "toconline_mcp.app.get_settings",
             lambda: _settings(max_write_calls_per_session=1),
@@ -110,8 +111,9 @@ class TestWriteTool:
         assert "rate limit" in result3["error"].lower()
 
     async def test_write_tool_rate_limit_disabled_when_zero(self, monkeypatch) -> None:
-        """When max_write_calls_per_session=0 the rate limit is disabled and all calls succeed."""
-        monkeypatch.setattr(app_module.mcp, "tool", lambda: (lambda f: f))
+        """When max_write_calls_per_session=0 the rate limit is disabled and all
+        calls succeed."""
+        monkeypatch.setattr(app_module.mcp, "tool", lambda: lambda f: f)
         monkeypatch.setattr(
             "toconline_mcp.app.get_settings",
             lambda: _settings(max_write_calls_per_session=0),

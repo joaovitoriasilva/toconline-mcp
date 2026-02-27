@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     """Base URL of the TOC Online API (base_url in the Postman collection)."""
 
     access_token: str = ""
-    """Static Bearer access token. Used directly if provided, otherwise OAuth2 flow is used."""
+    """Static Bearer access token. Used directly if provided, otherwise OAuth2
+    flow is used."""
 
     client_id: str = ""
     """OAuth2 client ID."""
@@ -32,9 +33,10 @@ class Settings(BaseSettings):
     Set via TOCONLINE_REFRESH_TOKEN in your .env file."""
 
     redirect_uri: str = ""
-    """OAuth2 redirect URI. Defaults to https://oauth.pstmn.io/v1/callback when unset."""
+    """OAuth2 redirect URI. Defaults to https://oauth.pstmn.io/v1/callback
+    when unset."""
 
-    oauth_token_url: str = "https://app10.toconline.pt/oauth/token"
+    oauth_token_url: str = "https://app10.toconline.pt/oauth/token"  # noqa: S105
     """OAuth2 token endpoint (base_url_oauth/token from Postman collection).
     The /auth endpoint is derived by replacing /token with /auth."""
 

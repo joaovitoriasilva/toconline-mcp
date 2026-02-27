@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -16,7 +16,6 @@ from toconline_mcp.cli import (
     _run_auth,
 )
 from toconline_mcp.settings import Settings
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -265,7 +264,8 @@ class TestAuthLogin:
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """When callback URL state does not match expected state, sys.exit(1) is raised."""
+        """When callback URL state does not match expected state, sys.exit(1)
+        is raised."""
         settings = _make_settings()
         monkeypatch.setattr("toconline_mcp.cli.get_settings", lambda: settings)
         monkeypatch.setattr(
@@ -330,7 +330,8 @@ class TestAuthLogin:
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Happy path: valid code input leads to token exchange, keychain store, and success output."""
+        """Happy path: valid code input leads to token exchange, keychain store,
+        and success output."""
         settings = _make_settings()
         monkeypatch.setattr("toconline_mcp.cli.get_settings", lambda: settings)
         monkeypatch.setattr(

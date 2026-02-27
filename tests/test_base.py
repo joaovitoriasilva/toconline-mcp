@@ -9,11 +9,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from mcp.server.fastmcp.exceptions import ToolError
-from toconline_mcp.client import TOCOnlineClient
-from toconline_mcp.tools._base import get_client, validate_resource_id
 
+from toconline_mcp.tools._base import get_client, validate_resource_id
 
 # ---------------------------------------------------------------------------
 # TestValidateResourceId

@@ -1,4 +1,5 @@
-"""Tests for toconline_mcp.auth: PKCE helpers, make_auth_url, token exchange, TokenStore."""
+"""Tests for toconline_mcp.auth: PKCE helpers, make_auth_url, token exchange,
+TokenStore."""
 
 from __future__ import annotations
 
@@ -280,7 +281,7 @@ class TestTokenStore:
         assert store._refresh_token == "refresh-abc"
 
     # ------------------------------------------------------------------
-    # refresh – error paths
+    # refresh - error paths
     # ------------------------------------------------------------------
 
     async def test_refresh_raises_if_no_client_credentials(self) -> None:
@@ -305,7 +306,7 @@ class TestTokenStore:
             await store.refresh(settings, mock_client)
 
     # ------------------------------------------------------------------
-    # refresh – success paths
+    # refresh - success paths
     # ------------------------------------------------------------------
 
     def _make_mock_client(self, json_payload: dict) -> MagicMock:

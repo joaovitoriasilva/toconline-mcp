@@ -16,10 +16,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ async def list_products(
         response = await client.get("/api/products", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_products failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -194,7 +194,7 @@ async def create_product(
         response = await client.post("/api/products", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_product failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", {})
     item = data[0] if isinstance(data, list) and data else (data or {})
@@ -230,7 +230,7 @@ async def update_product(
         response = await client.patch("/api/products", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"update_product({product_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Product {product_id} updated")
@@ -255,7 +255,7 @@ async def delete_product(
         response = await client.delete(f"/api/products/{product_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"delete_product({product_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Product {product_id} deleted")
     return response.get("meta", {"result": "deleted"})

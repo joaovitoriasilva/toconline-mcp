@@ -6,7 +6,7 @@ regex, and the full async request lifecycle of TOCOnlineClient.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -18,7 +18,6 @@ from toconline_mcp.client import (
     response_text_fallback,
 )
 from toconline_mcp.settings import Settings
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -88,7 +87,8 @@ class TestTOCOnlineError:
         assert "Not found" in str(exc)
 
     def test_error_403_prefix(self) -> None:
-        """Status 403 produces the 'Permission denied (business rule violation)' prefix."""
+        """Status 403 produces the 'Permission denied (business rule violation)'
+        prefix."""
         errors = [{"code": "FORBIDDEN", "detail": "Access denied"}]
         exc = TOCOnlineError(errors, 403)
         assert str(exc).startswith("Permission denied (business rule violation): ")
@@ -133,7 +133,8 @@ class TestResponseTextFallback:
         ],
     )
     def test_fallback_text(self, status_code: int, expected_fragment: str) -> None:
-        """response_text_fallback returns the expected text for known and unknown codes."""
+        """response_text_fallback returns the expected text for known and unknown
+        codes."""
         result = response_text_fallback(status_code)
         assert expected_fragment in result
 

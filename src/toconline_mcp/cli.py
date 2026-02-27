@@ -2,10 +2,11 @@
 
 Subcommands
 -----------
-``toconline-mcp``           – (default) run the MCP server over stdio.
-``toconline-mcp auth``      – one-time PKCE browser login; stores refresh token in keychain.
-``toconline-mcp auth --status``  – check if a token is stored.
-``toconline-mcp auth --logout``  – delete the stored token.
+``toconline-mcp``           - (default) run the MCP server over stdio.
+``toconline-mcp auth``      - one-time PKCE browser login; stores refresh
+                             token in keychain.
+``toconline-mcp auth --status``  - check if a token is stored.
+``toconline-mcp auth --logout``  - delete the stored token.
 """
 
 from __future__ import annotations
@@ -25,7 +26,6 @@ from toconline_mcp.keychain import (
     store_refresh_token,
 )
 from toconline_mcp.settings import Settings, get_settings
-
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -150,7 +150,6 @@ def _auth_login() -> None:
     tokens = asyncio.run(_exchange(code, code_verifier, settings))
 
     refresh_token = tokens.get("refresh_token", "")
-    access_token = tokens.get("access_token", "")
     expires_in = tokens.get("expires_in", "?")
 
     if not refresh_token:

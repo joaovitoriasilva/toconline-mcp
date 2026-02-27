@@ -28,10 +28,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,8 @@ class SalesReceiptAttributes(BaseModel):
     payment_mechanism: Annotated[
         str,
         Field(
-            description="Payment mechanism code (e.g. 'MO' = cash, 'TB' = bank transfer)."
+            description="Payment mechanism code (e.g. 'MO' = cash, 'TB' = bank"
+            " transfer)."
         ),
     ]
     customer_id: Annotated[
@@ -76,7 +77,8 @@ class SalesReceiptAttributes(BaseModel):
         bool | None,
         Field(
             default=None,
-            description="Whether this is a standalone receipt (not linked to a document).",
+            description="Whether this is a standalone receipt (not linked to a"
+            " document).",
         ),
     ] = None
     third_party_id: Annotated[
@@ -98,7 +100,8 @@ class SalesReceiptAttributes(BaseModel):
         int | None,
         Field(
             default=None,
-            description="Currency ID from /api/currencies (defaults to company's base currency).",
+            description="Currency ID from /api/currencies (defaults to company's"
+            " base currency).",
         ),
     ] = None
     currency_conversion_rate: Annotated[
@@ -123,7 +126,8 @@ class SalesReceiptAttributes(BaseModel):
 
 
 class SalesReceiptUpdateAttributes(BaseModel):
-    """Attributes that can be updated on an existing sales receipt (v1 flat-body; all optional)."""
+    """Attributes that can be updated on an existing sales receipt
+    (v1 flat-body; all optional)."""
 
     date: str | None = None
     gross_total: float | None = None
@@ -163,7 +167,8 @@ class SalesReceiptLineAttributes(BaseModel):
         str | None,
         Field(
             default=None,
-            description="Discount/settlement percentage applied (passed as string expression, e.g. '3' for 3%).",
+            description="Discount/settlement percentage applied (passed as string"
+            " expression, e.g. '3' for 3%).",
         ),
     ] = None
     settlement_amount: Annotated[
@@ -205,7 +210,8 @@ async def list_sales_receipts(
         str | None,
         Field(
             default=None,
-            description="Filter by document number (e.g. 'RG 2025/1'). Maps to filter[document_no].",
+            description="Filter by document number (e.g. 'RG 2025/1'). Maps to"
+            " filter[document_no].",
         ),
     ] = None,
     page: Annotated[
@@ -240,7 +246,7 @@ async def list_sales_receipts(
         response = await client.get("/api/v1/commercial_sales_receipts", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_sales_receipts failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -256,14 +262,15 @@ async def get_sales_receipt(
     ctx: Context,
     receipt_id: Annotated[str, Field(description="The TOC Online sales receipt ID.")],
 ) -> dict[str, Any]:
-    """Return a single sales receipt by ID, including all attributes and line references."""
+    """Return a single sales receipt by ID, including all attributes
+    and line references."""
     client = get_client(ctx)
     validate_resource_id(receipt_id, "receipt_id")
     try:
         response = await client.get(f"/api/v1/commercial_sales_receipts/{receipt_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"get_sales_receipt({receipt_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     return {"id": item.get("id"), **item.get("attributes", {})}
@@ -275,7 +282,8 @@ async def create_sales_receipt(
     attributes: Annotated[
         SalesReceiptAttributes,
         Field(
-            description="Receipt header data. Add lines separately with create_sales_receipt_line."
+            description="Receipt header data. Add lines separately with"
+            " create_sales_receipt_line."
         ),
     ],
 ) -> dict[str, Any]:
@@ -292,7 +300,7 @@ async def create_sales_receipt(
         response = await client.post("/api/v1/commercial_sales_receipts", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_sales_receipt failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Sales receipt created with id={item.get('id')}")
@@ -324,7 +332,7 @@ async def update_sales_receipt(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"update_sales_receipt({receipt_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Sales receipt {receipt_id} updated")
@@ -351,7 +359,7 @@ async def delete_sales_receipt(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"delete_sales_receipt({receipt_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Sales receipt {receipt_id} deleted")
     return response.get("meta", {"result": "deleted"})
@@ -385,13 +393,14 @@ async def list_sales_receipt_lines(
     if per_page is not None:
         params["page[size]"] = str(per_page)
     try:
-        # GET is only documented at the non-v1 path; v1 only exposes DELETE on receipt lines
+        # GET is only documented at the non-v1 path; v1 only exposes DELETE
+        # on receipt lines
         response = await client.get(
             "/api/commercial_sales_receipt_lines", params=params
         )
     except TOCOnlineError as exc:
         await ctx.error(f"list_sales_receipt_lines failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -428,7 +437,7 @@ async def create_sales_receipt_line(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"create_sales_receipt_line failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Sales receipt line created with id={item.get('id')}")
@@ -469,7 +478,7 @@ async def send_sales_receipt_email(
         response = await client.patch("/api/email/document", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"send_sales_receipt_email({receipt_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Sales receipt {receipt_id} emailed to {to_email}")
     return response.get("meta", response.get("data", {"result": "sent"}))
@@ -495,7 +504,7 @@ async def void_sales_receipt(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"void_sales_receipt({receipt_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Sales receipt {receipt_id} voided")
     item = response.get("data", {})

@@ -46,6 +46,9 @@ line-length = 88
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "S", "A", "C4", "RUF"]
 ignore = ["S101"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["toconline_mcp"]
 

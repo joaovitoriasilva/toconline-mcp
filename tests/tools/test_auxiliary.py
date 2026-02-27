@@ -9,8 +9,8 @@ list_bank_accounts, list_cash_accounts, and list_tax_descriptors.
 from __future__ import annotations
 
 import pytest
-
 from mcp.server.fastmcp.exceptions import ToolError
+
 from toconline_mcp.client import TOCOnlineError
 from toconline_mcp.tools.auxiliary import (
     list_bank_accounts,
@@ -26,7 +26,6 @@ from toconline_mcp.tools.auxiliary import (
     list_taxes,
     list_units_of_measure,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers

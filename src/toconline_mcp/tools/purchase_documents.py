@@ -1,15 +1,23 @@
 """MCP tools for managing TOC Online Purchase Documents.
 
 Endpoints covered:
-  GET    /api/v1/commercial_purchases_documents/              -> list_purchase_documents
-  GET    /api/commercial_purchases_documents/{id}            -> get_purchase_document  (legacy path, no v1 by-ID endpoint in spec)
-  POST   /api/v1/commercial_purchases_documents               -> create_purchase_document  (atomic, flat payload)
-  PATCH  /api/v1/commercial_purchases_documents/{id}/finalize  -> finalize_purchase_document
-  PATCH  /api/v1/commercial_purchases_documents/{id}/void      -> void_purchase_document
-  DELETE /api/commercial_purchases_documents/{id}            -> delete_purchase_document  (legacy path)
+  GET    /api/v1/commercial_purchases_documents/
+    -> list_purchase_documents
+  GET    /api/commercial_purchases_documents/{id}
+    -> get_purchase_document  (legacy path, no v1 by-ID endpoint in spec)
+  POST   /api/v1/commercial_purchases_documents
+    -> create_purchase_document  (atomic, flat payload)
+  PATCH  /api/v1/commercial_purchases_documents/{id}/finalize
+    -> finalize_purchase_document
+  PATCH  /api/v1/commercial_purchases_documents/{id}/void
+    -> void_purchase_document
+  DELETE /api/commercial_purchases_documents/{id}
+    -> delete_purchase_document  (legacy path)
 
-  GET    /api/url_for_print/{id}?filter[type]=PurchasesDocument -> get_purchase_document_pdf_url
-  PATCH  /api/email/document                                  -> send_purchase_document_email
+  GET    /api/url_for_print/{id}?filter[type]=PurchasesDocument
+    -> get_purchase_document_pdf_url
+  PATCH  /api/email/document
+    -> send_purchase_document_email
 
 Common purchase document types (document_type):
   FC = Fatura de Compra, VD = Nota de Débito de Fornecedor,
@@ -25,10 +33,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -42,7 +50,8 @@ class PurchaseDocumentLine(BaseModel):
     item_id: Annotated[
         int,
         Field(
-            description="ID of the product or service from /api/products or /api/services."
+            description="ID of the product or service from /api/products or"
+            " /api/services."
         ),
     ]
     item_type: Annotated[
@@ -75,7 +84,7 @@ class PurchaseDocumentLine(BaseModel):
     ] = None
     discount: Annotated[
         float | None,
-        Field(default=None, description="Line discount percentage (0–100)."),
+        Field(default=None, description="Line discount percentage (0-100)."),
     ] = None
     description: Annotated[
         str | None,
@@ -91,12 +100,14 @@ class PurchaseDocumentLine(BaseModel):
 
 
 class PurchaseDocumentAttributes(BaseModel):
-    """Attributes for creating a new purchase document (v1 atomic endpoint — flat payload)."""
+    """Attributes for creating a new purchase document
+    (v1 atomic endpoint — flat payload)."""
 
     document_type: Annotated[
         str,
         Field(
-            description="Document type code (e.g. 'FC' = Fatura de Compra, 'VD' = Nota de Débito, 'VC' = Nota de Crédito)."
+            description="Document type code (e.g. 'FC' = Fatura de Compra,"
+            " 'VD' = Nota de Débito, 'VC' = Nota de Crédito)."
         ),
     ]
     document_series_id: Annotated[
@@ -155,7 +166,8 @@ class PurchaseDocumentAttributes(BaseModel):
         int | None,
         Field(
             default=None,
-            description="Currency ID from /api/currencies (default = company currency).",
+            description="Currency ID from /api/currencies"
+            " (default = company currency).",
         ),
     ] = None
     currency_iso_code: Annotated[
@@ -220,42 +232,48 @@ async def list_purchase_documents(
         str | None,
         Field(
             default=None,
-            description="Filter by document status: '1' = finalized, '0' = draft. Omit for all.",
+            description="Filter by document status: '1' = finalized, '0' = draft."
+            " Omit for all.",
         ),
     ] = None,
     document_no: Annotated[
         str | None,
         Field(
             default=None,
-            description="Filter by document number (e.g. 'FF 2025/1'). Maps to filter[document_no].",
+            description="Filter by document number (e.g. 'FF 2025/1'). Maps to"
+            " filter[document_no].",
         ),
     ] = None,
     supplier_id: Annotated[
         str | None,
         Field(
             default=None,
-            description="Filter by supplier ID (numeric string). Maps to filter[supplier_id].",
+            description="Filter by supplier ID (numeric string). Maps to"
+            " filter[supplier_id].",
         ),
     ] = None,
     supplier_tax_registration_number: Annotated[
         str | None,
         Field(
             default=None,
-            description="Filter by supplier NIF (tax registration number). Maps to filter[supplier_tax_registration_number].",
+            description="Filter by supplier NIF (tax registration number). Maps to"
+            " filter[supplier_tax_registration_number].",
         ),
     ] = None,
     date_from: Annotated[
         str | None,
         Field(
             default=None,
-            description="Return documents on or after this date (YYYY-MM-DD). Maps to filter[date_from].",
+            description="Return documents on or after this date (YYYY-MM-DD)."
+            " Maps to filter[date_from].",
         ),
     ] = None,
     date_to: Annotated[
         str | None,
         Field(
             default=None,
-            description="Return documents on or before this date (YYYY-MM-DD). Maps to filter[date_to].",
+            description="Return documents on or before this date (YYYY-MM-DD)."
+            " Maps to filter[date_to].",
         ),
     ] = None,
     page: Annotated[
@@ -305,7 +323,7 @@ async def list_purchase_documents(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"list_purchase_documents failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -323,7 +341,8 @@ async def get_purchase_document(
         str, Field(description="The TOC Online purchase document ID.")
     ],
 ) -> dict[str, Any]:
-    """Return a single purchase document by ID including all attributes and line references."""
+    """Return a single purchase document by ID including all attributes
+    and line references."""
     client = get_client(ctx)
     validate_resource_id(document_id, "document_id")
     try:
@@ -332,7 +351,7 @@ async def get_purchase_document(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"get_purchase_document({document_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     return {"id": item.get("id"), **item.get("attributes", {})}
@@ -362,7 +381,7 @@ async def create_purchase_document(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"create_purchase_document failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Purchase document created with id={item.get('id')}")
@@ -390,7 +409,7 @@ async def finalize_purchase_document(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"finalize_purchase_document({document_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     # The finalize endpoint returns a flat JSON object (no data/attributes wrapper).
     await ctx.info(f"Purchase document {document_id} finalized")
@@ -417,7 +436,7 @@ async def delete_purchase_document(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"delete_purchase_document({document_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Purchase document {document_id} deleted")
     return response.get("meta", {"result": "deleted"})
@@ -440,7 +459,7 @@ async def get_purchase_document_pdf_url(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"get_purchase_document_pdf_url({document_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", {})
     attrs = data.get("attributes", {})
@@ -489,7 +508,7 @@ async def send_purchase_document_email(
         response = await client.patch("/api/email/document", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"send_purchase_document_email({document_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Purchase document {document_id} emailed to {to_email}")
     return response.get("meta", response.get("data", {"result": "sent"}))
@@ -515,7 +534,7 @@ async def void_purchase_document(
         )
     except TOCOnlineError as exc:
         await ctx.error(f"void_purchase_document({document_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Purchase document {document_id} voided")
     return response.get("meta", response.get("data", {"result": "voided"}))

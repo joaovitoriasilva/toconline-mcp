@@ -19,7 +19,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 _SERVICE_NAME = "toconline-mcp"
-_REFRESH_TOKEN_KEY = "refresh_token"
+_REFRESH_TOKEN_KEY = "refresh_token"  # noqa: S105
 
 
 def store_refresh_token(token: str) -> bool:

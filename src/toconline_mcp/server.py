@@ -50,7 +50,8 @@ def _load_tool_modules() -> None:
         unknown = set(requested) - set(_ALL_MODULES)
         if unknown:
             raise ValueError(
-                f"Unknown module(s) in TOCONLINE_MODULES: {', '.join(sorted(unknown))}. "
+                f"Unknown module(s) in TOCONLINE_MODULES: "
+                f"{', '.join(sorted(unknown))}. "
                 f"Valid names: {', '.join(_ALL_MODULES)}"
             )
         modules_to_load = requested

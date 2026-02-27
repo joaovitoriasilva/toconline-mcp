@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(server: FastMCP) -> AsyncIterator[dict]:  # noqa: ARG001
+async def lifespan(server: FastMCP) -> AsyncIterator[dict]:
     """Initialise shared resources that tools can access via ctx.request_context.
 
     Token resolution priority:

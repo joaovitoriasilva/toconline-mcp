@@ -6,14 +6,10 @@ yielded context always contains an ``api_client`` key.
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from toconline_mcp.app import lifespan
 from toconline_mcp.settings import Settings
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -73,7 +69,8 @@ class TestLifespan:
                 assert "api_client" in ctx
 
     async def test_keychain_token_calls_load_refresh_token(self) -> None:
-        """Priority 2: when the keychain holds a token, load_refresh_token() is called."""
+        """Priority 2: when the keychain holds a token, load_refresh_token()
+        is called."""
         settings = _make_settings()  # no access_token, no refresh_token in env
         mock_store = MagicMock()
         mock_client = _make_client_async_context_manager()
@@ -113,7 +110,8 @@ class TestLifespan:
                 assert "api_client" in ctx
 
     async def test_no_tokens_yields_client_without_loading_any_token(self) -> None:
-        """When no tokens are present, neither loader is called but ctx still has api_client."""
+        """When no tokens are present, neither loader is called but ctx still
+        has api_client."""
         settings = _make_settings()  # no access_token, no refresh_token
         mock_store = MagicMock()
         mock_client = _make_client_async_context_manager()

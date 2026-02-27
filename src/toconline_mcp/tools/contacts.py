@@ -25,10 +25,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -114,7 +114,7 @@ async def list_contacts(ctx: Context) -> list[dict[str, Any]]:
         response = await client.get("/api/contacts")
     except TOCOnlineError as exc:
         await ctx.error(f"list_contacts failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = response.get("data", [])
     return [{"id": item.get("id"), **item.get("attributes", {})} for item in items]
@@ -132,7 +132,7 @@ async def get_contact(
         response = await client.get(f"/api/contacts/{contact_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"get_contact({contact_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     return {"id": item.get("id"), **item.get("attributes", {})}
@@ -164,7 +164,7 @@ async def create_contact(
         response = await client.post("/api/contacts", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_contact failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Contact created with id={item.get('id')}")
@@ -199,7 +199,7 @@ async def update_contact(
         response = await client.patch("/api/contacts", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"update_contact({contact_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Contact {contact_id} updated")
@@ -223,7 +223,7 @@ async def delete_contact(
         response = await client.delete(f"/api/contacts/{contact_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"delete_contact({contact_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Contact {contact_id} deleted")
     return response.get("meta", {"result": "deleted"})

@@ -3,16 +3,21 @@
 TOC Online uses the authorization_code OAuth2 flow with PKCE (S256).
 
 Key facts from the Postman collection:
-  - client_authentication: "body" — credentials go in the request body, NOT as Basic auth.
+  - client_authentication: "body" — credentials go in the request body,
+    NOT as Basic auth.
   - challengeAlgorithm: "S256" — PKCE is required.
-  - base_url_oauth: https://app10.toconline.pt/oauth → token URL ends in /token, auth in /auth.
+  - base_url_oauth: https://app10.toconline.pt/oauth → token URL ends in
+    /token, auth in /auth.
   - base_url (API): https://api10.toconline.pt
 
 Flow:
   1. generate_pkce_pair() → code_verifier + code_challenge.
-  2. make_auth_url() → browser URL with code_challenge; user logs in, gets authorization_code.
-  3. exchange_code_for_tokens() → POST /token with code + code_verifier + client creds in body.
-  4. Store refresh_token; TokenStore.refresh() renews access_token silently from then on.
+  2. make_auth_url() → browser URL with code_challenge; user logs in,
+     gets authorization_code.
+  3. exchange_code_for_tokens() → POST /token with code + code_verifier
+     + client creds in body.
+  4. Store refresh_token; TokenStore.refresh() renews access_token
+     silently from then on.
 """
 
 from __future__ import annotations
@@ -159,7 +164,8 @@ class TokenStore:
         if not refresh_token:
             raise RuntimeError(
                 "No valid access token and no refresh_token available.\n"
-                "Run 'uv run toconline-mcp auth' in a terminal to authenticate via browser,\n"
+                "Run 'uv run toconline-mcp auth' in a terminal to authenticate"
+                " via browser,\n"
                 "or set TOCONLINE_REFRESH_TOKEN in your .env file."
             )
 

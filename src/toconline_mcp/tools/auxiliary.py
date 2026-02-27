@@ -26,7 +26,7 @@ from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from toconline_mcp.app import mcp
-from toconline_mcp.tools._base import get_client, ToolError, TOCOnlineError
+from toconline_mcp.tools._base import TOCOnlineError, ToolError, get_client
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -54,8 +54,10 @@ async def list_taxes(
         Field(
             default=None,
             description=(
-                "Optional tax country region filter (maps to filter[tax_country_region]). "
-                "E.g. 'PT' for mainland Portugal, 'PT-AC' for Azores, 'PT-MA' for Madeira."
+                "Optional tax country region filter (maps to"
+                " filter[tax_country_region]). "
+                "E.g. 'PT' for mainland Portugal, 'PT-AC' for Azores,"
+                " 'PT-MA' for Madeira."
             ),
         ),
     ] = None,
@@ -63,14 +65,16 @@ async def list_taxes(
         str | None,
         Field(
             default=None,
-            description="Optional tax code filter (maps to filter[tax_code]). E.g. 'NOR', 'INT', 'RED', 'ISE'.",
+            description="Optional tax code filter (maps to filter[tax_code])."
+            " E.g. 'NOR', 'INT', 'RED', 'ISE'.",
         ),
     ] = None,
     tax_percentage: Annotated[
         str | None,
         Field(
             default=None,
-            description="Filter by tax percentage value (e.g. '23', '6'). Maps to filter[tax_percentage].",
+            description="Filter by tax percentage value (e.g. '23', '6')."
+            " Maps to filter[tax_percentage].",
         ),
     ] = None,
     page: Annotated[
@@ -110,7 +114,7 @@ async def list_taxes(
         response = await client.get("/api/taxes", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_taxes failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -124,7 +128,8 @@ async def list_countries(
         str | None,
         Field(
             default=None,
-            description="Filter by ISO alpha-2 country code (e.g. 'PT', 'ES', 'US'). Maps to filter[iso_alpha_2].",
+            description="Filter by ISO alpha-2 country code (e.g. 'PT', 'ES',"
+            " 'US'). Maps to filter[iso_alpha_2].",
         ),
     ] = None,
     page: Annotated[
@@ -159,7 +164,7 @@ async def list_countries(
         response = await client.get("/api/countries", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_countries failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -198,7 +203,7 @@ async def list_currencies(
         response = await client.get("/api/currencies", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_currencies failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -212,7 +217,8 @@ async def list_units_of_measure(
         str | None,
         Field(
             default=None,
-            description="Filter by unit name (e.g. 'horas', 'quilogramas', 'unidade'). Maps to filter[unit_of_measure].",
+            description="Filter by unit name (e.g. 'horas', 'quilogramas',"
+            " 'unidade'). Maps to filter[unit_of_measure].",
         ),
     ] = None,
     page: Annotated[
@@ -247,7 +253,7 @@ async def list_units_of_measure(
         response = await client.get("/api/units_of_measure", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_units_of_measure failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -286,7 +292,7 @@ async def list_item_families(
         response = await client.get("/api/item_families", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_item_families failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -325,7 +331,7 @@ async def list_expense_categories(
         response = await client.get("/api/expense_categories", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_expense_categories failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -349,14 +355,17 @@ async def list_document_series(
         str | None,
         Field(
             default=None,
-            description="Filter by series prefix (e.g. 'A', 'B'). Maps to filter[prefix].",
+            description="Filter by series prefix (e.g. 'A', 'B'). Maps to"
+            " filter[prefix].",
         ),
     ] = None,
     number: Annotated[
         str | None,
         Field(
             default=None,
-            description="Filter by series sequence counter (e.g. '13'). This is NOT the year — use the `prefix` parameter to filter by year/prefix.",
+            description="Filter by series sequence counter (e.g. '13'). This is"
+            " NOT the year — use the `prefix` parameter to filter by"
+            " year/prefix.",
         ),
     ] = None,
     page: Annotated[
@@ -396,7 +405,7 @@ async def list_document_series(
         response = await client.get("/api/commercial_document_series", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_document_series failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -435,7 +444,7 @@ async def list_bank_accounts(
         response = await client.get("/api/bank_accounts", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_bank_accounts failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -474,7 +483,7 @@ async def list_cash_accounts(
         response = await client.get("/api/cash_accounts", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_cash_accounts failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -496,7 +505,7 @@ async def list_oss_countries(
         response = await client.get("/api/oss_countries")
     except TOCOnlineError as exc:
         await ctx.error(f"list_oss_countries failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -520,7 +529,7 @@ async def list_oss_taxes(
         response = await client.get("/api/oss_taxes")
     except TOCOnlineError as exc:
         await ctx.error(f"list_oss_taxes failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})
@@ -544,7 +553,8 @@ async def list_tax_descriptors(
         ),
     ] = None,
 ) -> dict[str, Any]:
-    """Return all tax descriptors (motivos de isenção / exemption reasons) in TOC Online.
+    """Return all tax descriptors (motivos de isenção / exemption reasons)
+    in TOC Online.
 
     Each item contains the descriptor id, code, and description.
     Use the returned ``id`` as ``tax_descriptor_id`` on document lines where the
@@ -560,7 +570,7 @@ async def list_tax_descriptors(
         response = await client.get("/api/tax_descriptors", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_tax_descriptors failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     items = _unwrap(response)
     meta = response.get("meta", {})

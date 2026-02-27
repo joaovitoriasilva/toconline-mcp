@@ -7,9 +7,11 @@ forwarding.
 
 from __future__ import annotations
 
-import pytest
+from unittest.mock import MagicMock
 
+import pytest
 from mcp.server.fastmcp.exceptions import ToolError
+
 from toconline_mcp.client import TOCOnlineError
 from toconline_mcp.tools.customers import (
     CustomerAttributes,

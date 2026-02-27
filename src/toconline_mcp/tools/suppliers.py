@@ -17,10 +17,10 @@ from pydantic import BaseModel, Field
 
 from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
+    TOCOnlineError,
+    ToolError,
     get_client,
     validate_resource_id,
-    ToolError,
-    TOCOnlineError,
 )
 
 # ---------------------------------------------------------------------------
@@ -35,7 +35,8 @@ class SupplierAttributes(BaseModel):
     tax_registration_number: Annotated[
         str,
         Field(
-            description="NIF (Portuguese tax identification number) or foreign equivalent."
+            description="NIF (Portuguese tax identification number) or foreign"
+            " equivalent."
         ),
     ]
     country_iso_alpha_2: Annotated[
@@ -142,14 +143,16 @@ async def list_suppliers(
         str | None,
         Field(
             default=None,
-            description="Filter by supplier name (partial match). Maps to filter[business_name].",
+            description="Filter by supplier name (partial match). Maps to"
+            " filter[business_name].",
         ),
     ] = None,
     tax_registration_number: Annotated[
         str | None,
         Field(
             default=None,
-            description="Filter by NIF / tax number (exact match). Maps to filter[tax_registration_number].",
+            description="Filter by NIF / tax number (exact match). Maps to"
+            " filter[tax_registration_number].",
         ),
     ] = None,
     page: Annotated[
@@ -186,7 +189,7 @@ async def list_suppliers(
         response = await client.get("/api/suppliers", params=params)
     except TOCOnlineError as exc:
         await ctx.error(f"list_suppliers failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     data = response.get("data", [])
     if not isinstance(data, list):
@@ -202,14 +205,15 @@ async def get_supplier(
     ctx: Context,
     supplier_id: Annotated[str, Field(description="The TOC Online supplier ID.")],
 ) -> dict[str, Any]:
-    """Return a single supplier by ID, including their addresses, contacts, and bank accounts."""
+    """Return a single supplier by ID, including their addresses, contacts,
+    and bank accounts."""
     client = get_client(ctx)
     validate_resource_id(supplier_id, "supplier_id")
     try:
         response = await client.get(f"/api/suppliers/{supplier_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"get_supplier({supplier_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     return {"id": item.get("id"), **item.get("attributes", {})}
@@ -238,7 +242,7 @@ async def create_supplier(
         response = await client.post("/api/suppliers", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_supplier failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Supplier created with id={item.get('id')}")
@@ -273,7 +277,7 @@ async def update_supplier(
         response = await client.patch("/api/suppliers", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"update_supplier({supplier_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     item = response.get("data", {})
     await ctx.info(f"Supplier {supplier_id} updated")
@@ -290,7 +294,8 @@ async def delete_supplier(
     """Delete a supplier by ID.
 
     Returns a confirmation meta object on success.
-    Raises an error if the supplier has issued documents or payments and cannot be deleted.
+    Raises an error if the supplier has issued documents or payments and cannot
+    be deleted.
     """
     client = get_client(ctx)
     validate_resource_id(supplier_id, "supplier_id")
@@ -298,7 +303,7 @@ async def delete_supplier(
         response = await client.delete(f"/api/suppliers/{supplier_id}")
     except TOCOnlineError as exc:
         await ctx.error(f"delete_supplier({supplier_id}) failed: {exc}")
-        raise ToolError(str(exc))
+        raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Supplier {supplier_id} deleted")
     return response.get("meta", {"result": "deleted"})
