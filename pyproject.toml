@@ -34,4 +34,23 @@ dev = [
     "respx>=0.21",
     "pytest-cov>=6",
     "pytest-mock>=3.14",
+    "pyright>=1.1",
+    "pre-commit>=4",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "S", "A", "C4", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["toconline_mcp"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"

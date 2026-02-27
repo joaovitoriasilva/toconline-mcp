@@ -1,0 +1,49 @@
+# TOC Online MCP Server — Docker Compose
+#
+# Prerequisites
+# -------------
+# 1. Copy .env.example → .env and fill in your credentials.
+# 2. Run 'uv run toconline-mcp auth' ONCE locally to get a refresh token,
+#    then add TOCONLINE_REFRESH_TOKEN to your .env
+#    (Docker has no system keychain, so the env var fallback is required).
+#
+# Usage
+# -----
+#   docker compose up          # full access (all modules, writes enabled)
+#   docker compose --profile readonly up  # read-only mode
+
+services:
+  toconline-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: toconline-mcp:latest
+
+    # MCP servers communicate over stdio — keep stdin open so the MCP
+    # client (Claude Desktop, VS Code, etc.) can pipe commands in.
+    stdin_open: true
+    tty: false
+
+    # Load all env vars from .env (gitignored — never commit your .env).
+    # Required: TOCONLINE_CLIENT_ID, TOCONLINE_CLIENT_SECRET,
+    #           TOCONLINE_REFRESH_TOKEN  (keychain is unavailable in Docker)
+    env_file:
+      - .env
+
+    # Override individual vars here — takes precedence over .env.
+    environment:
+      # Safety: cap write operations per session to prevent runaway LLM loops.
+      TOCONLINE_MAX_WRITE_CALLS_PER_SESSION: "50"
+
+    restart: unless-stopped
+
+  # Read-only variant — activate with: docker compose --profile readonly up
+  toconline-mcp-readonly:
+    extends:
+      service: toconline-mcp
+    profiles: [readonly]
+    environment:
+      TOCONLINE_READ_ONLY: "true"
+      TOCONLINE_MAX_WRITE_CALLS_PER_SESSION: "0"
+      # Load only the modules needed for read-only reporting use cases.
+      TOCONLINE_MODULES: "customers,suppliers,sales_documents,purchase_documents,auxiliary"

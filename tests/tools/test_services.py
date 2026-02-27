@@ -210,7 +210,9 @@ class TestUpdateService:
                 service_id="abc!",
                 attributes=ServiceUpdateAttributes(notes="x"),
             )
-        mock_ctx.request_context.lifespan_context["api_client"].patch.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].patch.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -263,4 +265,6 @@ class TestDeleteService:
         """A non-numeric service_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await delete_service(mock_ctx, service_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].delete.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].delete.assert_not_called()

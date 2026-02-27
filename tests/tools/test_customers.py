@@ -273,7 +273,9 @@ class TestUpdateCustomer:
                 customer_id="abc!",
                 attributes=CustomerUpdateAttributes(email="x@y.com"),
             )
-        mock_ctx.request_context.lifespan_context["api_client"].patch.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].patch.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -317,4 +319,6 @@ class TestDeleteCustomer:
         """A non-numeric customer_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await delete_customer(mock_ctx, customer_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].delete.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].delete.assert_not_called()

@@ -118,6 +118,44 @@ uv run mcp install src/toconline_mcp/server.py
 
 Then add your environment variables to the Claude Desktop MCP server configuration.
 
+## Docker
+
+The server can run inside a container for headless or server deployments. Because Docker has no system keychain, authentication uses the `TOCONLINE_REFRESH_TOKEN` env var fallback.
+
+### Prerequisites
+
+1. Authenticate **once locally** to obtain a refresh token:
+
+```bash
+uv run toconline-mcp auth
+```
+
+2. Copy the token into your `.env` file:
+
+```bash
+# .env
+TOCONLINE_CLIENT_ID=your_client_id
+TOCONLINE_CLIENT_SECRET=your_client_secret
+TOCONLINE_REFRESH_TOKEN=your_refresh_token
+```
+
+### Run with Docker Compose
+
+```bash
+# Full access (all modules, writes enabled)
+docker compose up
+
+# Read-only mode (limited modules, all writes blocked)
+docker compose --profile readonly up
+```
+
+### Build and run manually
+
+```bash
+docker build -t toconline-mcp:latest .
+docker run --env-file .env toconline-mcp:latest
+```
+
 ## Tool Modules
 
 | Module | Tools | Description |
@@ -156,10 +194,18 @@ TOCONLINE_READ_ONLY=true uv run toconline-mcp
 toconline-mcp/
 ├── .env.example              # Environment variable template
 ├── .python-version           # Pinned Python version
+├── .pre-commit-config.yaml   # Pre-commit hooks (lint, format, secret detection)
+├── docker-compose.yml        # Docker Compose for containerised deployments
+├── Dockerfile                # Container image definition
 ├── pyproject.toml
 ├── README.md
 ├── swagger.yaml              # TOC Online OpenAPI spec
 ├── uv.lock                   # Reproducible dependency lockfile
+├── .github/
+│   └── workflows/
+│       ├── ci.yml            # Lint + test on every push/PR
+│       ├── security.yml      # Dependency audit + secret scan
+│       └── release.yml       # Publish to PyPI on version tag
 ├── src/
 │   └── toconline_mcp/
 │       ├── cli.py            # CLI entry point (auth, --status, --logout)

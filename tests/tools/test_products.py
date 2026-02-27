@@ -207,7 +207,9 @@ class TestUpdateProduct:
                 product_id="abc!",
                 attributes=ProductUpdateAttributes(notes="x"),
             )
-        mock_ctx.request_context.lifespan_context["api_client"].patch.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].patch.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -251,4 +253,6 @@ class TestDeleteProduct:
         """A non-numeric product_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await delete_product(mock_ctx, product_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].delete.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].delete.assert_not_called()

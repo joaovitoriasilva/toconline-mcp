@@ -97,9 +97,7 @@ class TestGetContact:
         with pytest.raises(ToolError):
             await get_contact(mock_ctx, contact_id="0")
 
-    async def test_get_contact_invalid_id_raises_tool_error(
-        self, mock_ctx
-    ) -> None:
+    async def test_get_contact_invalid_id_raises_tool_error(self, mock_ctx) -> None:
         """A non-numeric contact_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await get_contact(mock_ctx, contact_id="abc!")
@@ -243,7 +241,9 @@ class TestUpdateContact:
                 contact_id="abc!",
                 attributes=ContactUpdateAttributes(name="X"),
             )
-        mock_ctx.request_context.lifespan_context["api_client"].patch.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].patch.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -287,4 +287,6 @@ class TestDeleteContact:
         """A non-numeric contact_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await delete_contact(mock_ctx, contact_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].delete.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].delete.assert_not_called()

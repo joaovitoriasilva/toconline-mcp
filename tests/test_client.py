@@ -165,9 +165,7 @@ class TestSafePathRegex:
         """Accepted paths reach the HTTP layer without raising ValueError."""
         client = _make_client()
         mock_http = MagicMock()
-        mock_http.request = AsyncMock(
-            return_value=httpx.Response(200, json={})
-        )
+        mock_http.request = AsyncMock(return_value=httpx.Response(200, json={}))
         client._client = mock_http
         # Should not raise — the request flows through to the mock HTTP layer.
         await client.get(path)
@@ -180,17 +178,15 @@ class TestSafePathRegex:
             "../secrets",
             "",
             "/customers",
-            "/api/foo?bar=1",         # query chars not in [\w/.-]
-            "/api/../etc/passwd",     # path-traversal via .. within /api prefix
+            "/api/foo?bar=1",  # query chars not in [\w/.-]
+            "/api/../etc/passwd",  # path-traversal via .. within /api prefix
         ],
     )
     async def test_invalid_paths_raise_value_error(self, path: str) -> None:
         """Rejected paths raise ValueError before any HTTP request is sent."""
         client = _make_client()
         mock_http = MagicMock()
-        mock_http.request = AsyncMock(
-            return_value=httpx.Response(200, json={})
-        )
+        mock_http.request = AsyncMock(return_value=httpx.Response(200, json={}))
         client._client = mock_http
         with pytest.raises(ValueError, match="Unsafe API path"):
             await client.get(path)

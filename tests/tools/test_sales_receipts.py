@@ -248,4 +248,6 @@ class TestDeleteSalesReceipt:
         """A non-numeric receipt_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await delete_sales_receipt(mock_ctx, receipt_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].delete.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].delete.assert_not_called()

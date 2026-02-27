@@ -272,9 +272,7 @@ class TestAuthLogin:
             "toconline_mcp.cli.make_auth_url",
             lambda s: ("https://auth.example.invalid/auth", "verifier", "correct"),
         )
-        monkeypatch.setattr(
-            "toconline_mcp.cli.webbrowser.open", lambda url: None
-        )
+        monkeypatch.setattr("toconline_mcp.cli.webbrowser.open", lambda url: None)
         monkeypatch.setattr(
             "builtins.input",
             lambda _: "https://localhost/cb?code=ABC&state=WRONG",
@@ -296,9 +294,7 @@ class TestAuthLogin:
             "toconline_mcp.cli.make_auth_url",
             lambda s: ("https://auth.example.invalid/auth", "verifier", "s"),
         )
-        monkeypatch.setattr(
-            "toconline_mcp.cli.webbrowser.open", lambda url: None
-        )
+        monkeypatch.setattr("toconline_mcp.cli.webbrowser.open", lambda url: None)
         # Blank input produces no code.
         monkeypatch.setattr("builtins.input", lambda _: "")
         with pytest.raises(SystemExit) as exc_info:
@@ -317,9 +313,7 @@ class TestAuthLogin:
             "toconline_mcp.cli.make_auth_url",
             lambda s: ("https://auth.example.invalid/auth", "verifier", "s"),
         )
-        monkeypatch.setattr(
-            "toconline_mcp.cli.webbrowser.open", lambda url: None
-        )
+        monkeypatch.setattr("toconline_mcp.cli.webbrowser.open", lambda url: None)
         monkeypatch.setattr("builtins.input", lambda _: "MYCODE")
         # Exchange returns only an access token — no refresh_token.
         monkeypatch.setattr(
@@ -343,9 +337,7 @@ class TestAuthLogin:
             "toconline_mcp.cli.make_auth_url",
             lambda s: ("https://auth.example.invalid/auth", "verifier", "s"),
         )
-        monkeypatch.setattr(
-            "toconline_mcp.cli.webbrowser.open", lambda url: None
-        )
+        monkeypatch.setattr("toconline_mcp.cli.webbrowser.open", lambda url: None)
         monkeypatch.setattr("builtins.input", lambda _: "MYCODE")
         monkeypatch.setattr(
             "toconline_mcp.cli.asyncio.run",
@@ -356,9 +348,7 @@ class TestAuthLogin:
             },
         )
         mock_store = MagicMock(return_value=True)
-        monkeypatch.setattr(
-            "toconline_mcp.cli.store_refresh_token", mock_store
-        )
+        monkeypatch.setattr("toconline_mcp.cli.store_refresh_token", mock_store)
         _auth_login()
         mock_store.assert_called_once_with("reftok")
         assert "✓" in capsys.readouterr().out

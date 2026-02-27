@@ -288,4 +288,6 @@ class TestDeletePurchasePayment:
         """A non-numeric payment_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await delete_purchase_payment(mock_ctx, payment_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].delete.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].delete.assert_not_called()

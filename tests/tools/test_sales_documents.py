@@ -264,7 +264,9 @@ class TestFinalizeSalesDocument:
         """A non-numeric document_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await finalize_sales_document(mock_ctx, document_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].patch.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].patch.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +310,9 @@ class TestDeleteSalesDocument:
         """A non-numeric document_id raises ToolError before any API call."""
         with pytest.raises(ToolError):
             await delete_sales_document(mock_ctx, document_id="abc!")
-        mock_ctx.request_context.lifespan_context["api_client"].delete.assert_not_called()
+        mock_ctx.request_context.lifespan_context[
+            "api_client"
+        ].delete.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
