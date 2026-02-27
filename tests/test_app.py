@@ -82,9 +82,9 @@ class TestWriteTool:
 
         assert "error" in result
         assert "read-only" in result["error"].lower()
-        assert (
-            invocations == []
-        ), "Underlying function must not be called in read-only mode"
+        assert invocations == [], (
+            "Underlying function must not be called in read-only mode"
+        )
 
     async def test_write_tool_rate_limit_exceeded(self, monkeypatch) -> None:
         """With max_write_calls_per_session=1 the first call succeeds; subsequent
