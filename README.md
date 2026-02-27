@@ -1,5 +1,12 @@
 # toconline-mcp
 
+[![CI](https://github.com/joaovitoriasilva/toconline-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/joaovitoriasilva/toconline-mcp/actions/workflows/ci.yml)
+[![Security](https://github.com/joaovitoriasilva/toconline-mcp/actions/workflows/security.yml/badge.svg)](https://github.com/joaovitoriasilva/toconline-mcp/actions/workflows/security.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for the [TOC Online](https://www.toconline.pt) Portuguese accounting platform API. Exposes 74 typed tools covering the full TOC Online API surface — customers, suppliers, catalog, sales, purchases, and auxiliary data — so any MCP-compatible AI assistant can manage your accounting directly.
 
 ## Features
