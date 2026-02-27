@@ -14,5 +14,7 @@ plans/
 .pre-commit-config.yaml
 .gitignore
 LICENSE
-README.md
 swagger.yaml
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
