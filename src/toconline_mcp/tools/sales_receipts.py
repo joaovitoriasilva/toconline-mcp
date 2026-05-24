@@ -31,6 +31,8 @@ from toconline_mcp.tools._base import (
     TOCOnlineError,
     ToolError,
     get_client,
+    unwrap_item,
+    unwrap_list,
     validate_resource_id,
 )
 
@@ -40,27 +42,24 @@ from toconline_mcp.tools._base import (
 
 
 class SalesReceiptAttributes(BaseModel):
-    """Attributes for creating a new sales receipt header (v1 flat-body format)."""
+    """Attributes for creating a new sales receipt header (legacy JSON:API endpoint).
 
-    date: Annotated[
-        str,
-        Field(description="Receipt date in ISO 8601 format (YYYY-MM-DD)."),
-    ]
-    gross_total: Annotated[
-        float,
-        Field(description="Total gross amount received."),
-    ]
-    net_total: Annotated[
-        float,
-        Field(description="Total net amount received (before VAT)."),
-    ]
+    Note: ``gross_total`` and ``net_total`` are server-computed from receipt
+    lines and MUST NOT be sent — including them causes the API to return
+    HTTP 500 (empirically confirmed 2026-05-24 on app25).
+    """
+
     payment_mechanism: Annotated[
         str,
         Field(
             description="Payment mechanism code (e.g. 'MO' = cash, 'TB' = bank"
-            " transfer)."
+            " transfer). Only truly required field."
         ),
     ]
+    date: Annotated[
+        str | None,
+        Field(default=None, description="Receipt date in ISO 8601 format (YYYY-MM-DD)."),
+    ] = None
     customer_id: Annotated[
         int | None,
         Field(default=None, description="Customer ID to associate with this receipt."),
@@ -248,13 +247,7 @@ async def list_sales_receipts(
         await ctx.error(f"list_sales_receipts failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    data = response.get("data", [])
-    if not isinstance(data, list):
-        data = [data]
-
-    items = [{"id": item.get("id"), **item.get("attributes", {})} for item in data]
-    meta = response.get("meta", {})
-    return {"data": items, "meta": meta}
+    return unwrap_list(response)
 
 
 @mcp.tool()
@@ -272,8 +265,7 @@ async def get_sales_receipt(
         await ctx.error(f"get_sales_receipt({receipt_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    item = response.get("data", {})
-    return {"id": item.get("id"), **item.get("attributes", {})}
+    return unwrap_item(response)
 
 
 @write_tool
@@ -294,17 +286,22 @@ async def create_sales_receipt(
     Returns the newly created receipt with its assigned ID.
     """
     client = get_client(ctx)
-    # v1 endpoint expects a flat JSON body (not JSON:API wrapper)
-    payload = attributes.model_dump(exclude_none=True)
+    # Empirically (2026-05-24, app25): the v1 endpoint returns HTTP 500 for
+    # any create attempt. The legacy endpoint with a JSON:API envelope works
+    # and assigns the document number atomically.
+    attrs = attributes.model_dump(exclude_none=True)
+    payload = {
+        "data": {"type": "commercial_sales_receipts", "attributes": attrs}
+    }
     try:
-        response = await client.post("/api/v1/commercial_sales_receipts", json=payload)
+        response = await client.post("/api/commercial_sales_receipts", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"create_sales_receipt failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    item = response.get("data", {})
-    await ctx.info(f"Sales receipt created with id={item.get('id')}")
-    return {"id": item.get("id"), **item.get("attributes", {})}
+    result = unwrap_item(response)
+    await ctx.info(f"Sales receipt created with id={result.get('id')}")
+    return result
 
 
 @write_tool
@@ -498,18 +495,26 @@ async def void_sales_receipt(
     """
     client = get_client(ctx)
     validate_resource_id(receipt_id, "receipt_id")
+    # Per docs, void requires the JSON:API envelope with attributes.deleted=true.
+    # The previous empty body was silently no-oping (same pattern as
+    # void_sales_document hit before being switched to the legacy endpoint).
+    payload = {
+        "data": {
+            "type": "commercial_sales_receipts",
+            "id": receipt_id,
+            "attributes": {"deleted": True},
+        }
+    }
     try:
         response = await client.patch(
-            f"/api/v1/commercial_sales_receipts/{receipt_id}/void", json={}
+            f"/api/v1/commercial_sales_receipts/{receipt_id}/void", json=payload
         )
     except TOCOnlineError as exc:
         await ctx.error(f"void_sales_receipt({receipt_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Sales receipt {receipt_id} voided")
-    item = response.get("data", {})
-    return (
-        {"id": item.get("id"), **item.get("attributes", {})}
-        if item
-        else response.get("meta", {"result": "voided"})
-    )
+    result = unwrap_item(response)
+    if result:
+        return result
+    return response.get("meta", {"result": "voided"}) if isinstance(response, dict) else {"result": "voided"}
