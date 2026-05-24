@@ -10,6 +10,13 @@ Endpoints covered:
   PATCH  /api/commercial_sales_documents
     -> finalize_sales_document (status → 1)
     [deprecated endpoint, no v1 equivalent]
+  POST   /api/commercial_sales_documents (legacy, header-only)
+    -> create_sales_document_draft  (true draft — does NOT finalize)
+  POST   /api/commercial_sales_document_lines (legacy)
+    -> add_sales_document_line  (append a line to an existing draft)
+  PATCH  /api/commercial_sales_documents (legacy, status:4 + voided_reason)
+    -> void_sales_document
+    [v1 /void endpoint is a no-op on this API version — use legacy]
   DELETE /api/commercial_sales_documents/{id}
     -> delete_sales_document
     [deprecated endpoint, no v1 equivalent]
@@ -357,12 +364,28 @@ async def list_sales_documents(
         await ctx.error(f"list_sales_documents failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    data = response.get("data", [])
-    if not isinstance(data, list):
-        data = [data]
+    # The /v1/commercial_sales_documents/ endpoint sometimes returns a bare
+    # list at the JSON root instead of the standard JSON:API {data, meta}
+    # envelope. Handle both shapes.
+    if isinstance(response, list):
+        data = response
+        meta: dict[str, Any] = {}
+    else:
+        data = response.get("data", [])
+        if not isinstance(data, list):
+            data = [data]
+        meta = response.get("meta", {})
 
-    items = [{"id": item.get("id"), **item.get("attributes", {})} for item in data]
-    meta = response.get("meta", {})
+    items = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        # JSON:API shape: {id, type, attributes: {...}}
+        # Bare shape: flat dict with all fields including id at root
+        if "attributes" in item and isinstance(item.get("attributes"), dict):
+            items.append({"id": item.get("id"), **item["attributes"]})
+        else:
+            items.append(item)
     return {"data": items, "meta": meta}
 
 
@@ -381,8 +404,16 @@ async def get_sales_document(
         await ctx.error(f"get_sales_document({document_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    item = response.get("data", {})
-    return {"id": item.get("id"), **item.get("attributes", {})}
+    # Handle bare-object root or {data:{...}} envelope from the v1 endpoint.
+    if isinstance(response, dict):
+        item = response.get("data") if isinstance(response.get("data"), dict) else response
+    elif isinstance(response, list) and response and isinstance(response[0], dict):
+        item = response[0]
+    else:
+        item = {}
+    if "attributes" in item and isinstance(item.get("attributes"), dict):
+        return {"id": item.get("id"), **item["attributes"]}
+    return item if isinstance(item, dict) else {}
 
 
 @write_tool
@@ -405,8 +436,10 @@ async def create_sales_document(
     Set ``finalize=1`` to finalize immediately. Returns the created document
     with its ID.
 
-    To create a draft and add lines separately, set ``finalize=0`` and then call
-    ``create_sales_document_line`` for each line, then ``finalize_sales_document``.
+    **WARNING** — when lines are included, this endpoint auto-finalizes the
+    document regardless of ``finalize=0``. For a true draft workflow, use
+    ``create_sales_document_draft`` (legacy header-only) + ``add_sales_document_line``
+    per line + optionally ``finalize_sales_document`` when ready.
     """
     client = get_client(ctx)
     payload = attributes.model_dump(exclude_none=True)
@@ -417,9 +450,28 @@ async def create_sales_document(
         await ctx.error(f"create_sales_document failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    item = response.get("data", {})
-    await ctx.info(f"Sales document created with id={item.get('id')}")
-    return {"id": item.get("id"), **item.get("attributes", {})}
+    # The API sometimes returns the created document at the root level instead
+    # of inside a {data: {...}} envelope. Handle both shapes so the caller
+    # always gets a real id back.
+    if isinstance(response, list) and response:
+        item = response[0] if isinstance(response[0], dict) else {}
+    elif isinstance(response, dict):
+        if "data" in response and isinstance(response["data"], dict):
+            item = response["data"]
+        elif "id" in response:
+            item = response
+        else:
+            item = {}
+    else:
+        item = {}
+
+    if "attributes" in item and isinstance(item.get("attributes"), dict):
+        result = {"id": item.get("id"), **item["attributes"]}
+    else:
+        result = {"id": item.get("id"), **{k: v for k, v in item.items() if k != "id"}}
+
+    await ctx.info(f"Sales document created with id={result.get('id')}")
+    return result
 
 
 @write_tool
@@ -551,3 +603,237 @@ async def send_sales_document_email(
 
     await ctx.info(f"Sales document {document_id} emailed to {to_email}")
     return response.get("meta", response.get("data", {"result": "sent"}))
+
+
+@write_tool
+async def create_sales_document_draft(
+    ctx: Context,
+    document_type: Annotated[
+        str,
+        Field(
+            description=(
+                "Document type code. Common values: 'FT' (Fatura), 'FS', 'FR',"
+                " 'NC', 'ND', 'OR', 'GT'."
+            )
+        ),
+    ],
+    date: Annotated[str, Field(description="Document date (YYYY-MM-DD).")],
+    document_series_id: Annotated[
+        int, Field(description="ID of the document series to use (required).")
+    ],
+    customer_tax_registration_number: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description=(
+                "Customer NIF / tax number. Provide this OR customer_id."
+                " Use '999999990' for final consumer."
+            ),
+        ),
+    ] = None,
+    customer_id: Annotated[
+        int | None,
+        Field(default=None, description="Existing TOC Online customer ID."),
+    ] = None,
+    customer_business_name: Annotated[
+        str | None,
+        Field(default=None, description="Customer name."),
+    ] = None,
+    due_date: Annotated[
+        str | None, Field(default=None, description="Payment due date (YYYY-MM-DD).")
+    ] = None,
+    payment_mechanism: Annotated[
+        str | None,
+        Field(default=None, description="Payment mechanism code (e.g. 'MO', 'TB')."),
+    ] = None,
+    notes: Annotated[
+        str | None, Field(default=None, description="Document-level notes.")
+    ] = None,
+    external_reference: Annotated[
+        str | None, Field(default=None, description="External reference / PO number.")
+    ] = None,
+    operation_country: Annotated[
+        str | None, Field(default=None, description="VAT operation country code.")
+    ] = None,
+    vat_included_prices: Annotated[
+        bool | None,
+        Field(default=None, description="Whether unit prices already include VAT."),
+    ] = None,
+) -> dict[str, Any]:
+    """Create a sales document header in **true draft** mode (status=0).
+
+    Uses the LEGACY POST /api/commercial_sales_documents endpoint, which honors
+    the draft status (unlike the v1 atomic endpoint that always finalizes when
+    given lines). After creation, add lines with ``add_sales_document_line``
+    and finalize with ``finalize_sales_document`` when ready.
+
+    Returns the created draft with its ID.
+    """
+    client = get_client(ctx)
+    attrs: dict[str, Any] = {
+        "document_type": document_type,
+        "date": date,
+        "document_series_id": document_series_id,
+        "status": 0,
+    }
+    for key, val in [
+        ("customer_tax_registration_number", customer_tax_registration_number),
+        ("customer_id", customer_id),
+        ("customer_business_name", customer_business_name),
+        ("due_date", due_date),
+        ("payment_mechanism", payment_mechanism),
+        ("notes", notes),
+        ("external_reference", external_reference),
+        ("operation_country", operation_country),
+        ("vat_included_prices", vat_included_prices),
+    ]:
+        if val is not None:
+            attrs[key] = val
+
+    payload = {
+        "data": {"type": "commercial_sales_documents", "attributes": attrs}
+    }
+    try:
+        response = await client.post("/api/commercial_sales_documents", json=payload)
+    except TOCOnlineError as exc:
+        await ctx.error(f"create_sales_document_draft failed: {exc}")
+        raise ToolError(str(exc)) from exc
+
+    # Handle bare-object or {data:{...}} envelope.
+    if isinstance(response, dict):
+        item = response.get("data") if isinstance(response.get("data"), dict) else response
+    else:
+        item = {}
+    if "attributes" in item and isinstance(item.get("attributes"), dict):
+        result = {"id": item.get("id"), **item["attributes"]}
+    else:
+        result = {"id": item.get("id") if isinstance(item, dict) else None, **(item if isinstance(item, dict) else {})}
+    await ctx.info(f"Sales document draft created with id={result.get('id')}")
+    return result
+
+
+@write_tool
+async def add_sales_document_line(
+    ctx: Context,
+    document_id: Annotated[
+        str, Field(description="ID of the draft sales document to append a line to.")
+    ],
+    item_id: Annotated[int, Field(description="Product or Service ID.")],
+    item_type: Annotated[str, Field(description="'Product' or 'Service'.")],
+    quantity: Annotated[
+        float | None, Field(default=None, description="Quantity (defaults to 1).")
+    ] = None,
+    unit_price: Annotated[
+        float | None, Field(default=None, description="Override the item's unit price.")
+    ] = None,
+    tax_id: Annotated[
+        int | None,
+        Field(default=None, description="Tax ID. Omit to use the item's default."),
+    ] = None,
+    description: Annotated[
+        str | None, Field(default=None, description="Override the line description.")
+    ] = None,
+    unit_of_measure_id: Annotated[
+        int | None, Field(default=None, description="Unit of measure ID.")
+    ] = None,
+    settlement_expression: Annotated[
+        str | None,
+        Field(default=None, description="Line discount expression, e.g. '10' or '3+5'."),
+    ] = None,
+) -> dict[str, Any]:
+    """Append a single line to an existing draft sales document.
+
+    Uses POST /api/commercial_sales_document_lines (legacy endpoint).
+    The target document must be in draft status — finalized documents cannot
+    have lines added.
+    """
+    client = get_client(ctx)
+    validate_resource_id(document_id, "document_id")
+    line_attrs: dict[str, Any] = {
+        "document_id": int(document_id),
+        "item_id": item_id,
+        "item_type": item_type,
+    }
+    for key, val in [
+        ("quantity", quantity),
+        ("unit_price", unit_price),
+        ("tax_id", tax_id),
+        ("description", description),
+        ("unit_of_measure_id", unit_of_measure_id),
+        ("settlement_expression", settlement_expression),
+    ]:
+        if val is not None:
+            line_attrs[key] = val
+
+    payload = {
+        "data": {
+            "type": "commercial_sales_document_lines",
+            "attributes": line_attrs,
+        }
+    }
+    try:
+        response = await client.post(
+            "/api/commercial_sales_document_lines", json=payload
+        )
+    except TOCOnlineError as exc:
+        await ctx.error(f"add_sales_document_line failed: {exc}")
+        raise ToolError(str(exc)) from exc
+
+    if isinstance(response, dict):
+        item = response.get("data") if isinstance(response.get("data"), dict) else response
+    else:
+        item = {}
+    if "attributes" in item and isinstance(item.get("attributes"), dict):
+        result = {"id": item.get("id"), **item["attributes"]}
+    else:
+        result = item if isinstance(item, dict) else {"result": "added"}
+    await ctx.info(f"Line added to draft {document_id}: line_id={result.get('id')}")
+    return result
+
+
+@write_tool
+async def void_sales_document(
+    ctx: Context,
+    document_id: Annotated[
+        str, Field(description="The TOC Online sales document ID to void (anular).")
+    ],
+    voided_reason: Annotated[
+        str,
+        Field(
+            description=(
+                "Reason for voiding the document (required by AT). "
+                "Will be communicated to the Portuguese tax authority."
+            ),
+        ),
+    ],
+) -> dict[str, Any]:
+    """Void (anular) a finalized sales document.
+
+    Uses the LEGACY PATCH /api/commercial_sales_documents endpoint with
+    ``status: 4`` + ``voided_reason``. The dedicated v1 ``/void`` endpoint
+    silently no-ops on this API version — empirically confirmed 2026-05-24.
+
+    Only finalized documents can be voided. Voiding is irreversible and is
+    reported to AT (Portuguese tax authority). For drafts, use
+    ``delete_sales_document`` instead.
+    """
+    client = get_client(ctx)
+    validate_resource_id(document_id, "document_id")
+    payload = {
+        "data": {
+            "type": "commercial_sales_documents",
+            "id": document_id,
+            "attributes": {"status": 4, "voided_reason": voided_reason},
+        }
+    }
+    try:
+        response = await client.patch("/api/commercial_sales_documents", json=payload)
+    except TOCOnlineError as exc:
+        await ctx.error(f"void_sales_document({document_id}) failed: {exc}")
+        raise ToolError(str(exc)) from exc
+
+    await ctx.info(f"Sales document {document_id} voided")
+    item = response.get("data", {}) if isinstance(response, dict) else {}
+    if "attributes" in item and isinstance(item.get("attributes"), dict):
+        return {"id": item.get("id"), **item["attributes"]}
+    return response.get("meta", {"result": "voided"}) if isinstance(response, dict) else {"result": "voided"}

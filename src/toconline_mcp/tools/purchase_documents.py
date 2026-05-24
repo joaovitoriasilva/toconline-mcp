@@ -9,8 +9,14 @@ Endpoints covered:
     -> create_purchase_document  (atomic, flat payload)
   PATCH  /api/v1/commercial_purchases_documents/{id}/finalize
     -> finalize_purchase_document
-  PATCH  /api/v1/commercial_purchases_documents/{id}/void
+    [uses LEGACY PATCH — v1 /finalize returns HTTP 500]
+  POST   /api/commercial_purchases_documents (legacy, header-only)
+    -> create_purchase_document_draft  (true draft, does NOT auto-finalize)
+  POST   /api/commercial_purchases_document_lines (legacy)
+    -> add_purchase_document_line
+  PATCH  /api/commercial_purchases_documents (legacy, status:4 + voided_reason)
     -> void_purchase_document
+    [v1 /void flips status but drops voided_reason — use legacy]
   DELETE /api/commercial_purchases_documents/{id}
     -> delete_purchase_document  (legacy path)
 
@@ -36,6 +42,8 @@ from toconline_mcp.tools._base import (
     TOCOnlineError,
     ToolError,
     get_client,
+    unwrap_item,
+    unwrap_list,
     validate_resource_id,
 )
 
@@ -325,13 +333,7 @@ async def list_purchase_documents(
         await ctx.error(f"list_purchase_documents failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    data = response.get("data", [])
-    if not isinstance(data, list):
-        data = [data]
-
-    items = [{"id": item.get("id"), **item.get("attributes", {})} for item in data]
-    meta = response.get("meta", {})
-    return {"data": items, "meta": meta}
+    return unwrap_list(response)
 
 
 @mcp.tool()
@@ -353,8 +355,7 @@ async def get_purchase_document(
         await ctx.error(f"get_purchase_document({document_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    item = response.get("data", {})
-    return {"id": item.get("id"), **item.get("attributes", {})}
+    return unwrap_item(response)
 
 
 @write_tool
@@ -368,8 +369,15 @@ async def create_purchase_document(
     """Create a new purchase document atomically (header + lines in one request).
 
     Uses the v1 endpoint which accepts lines nested inside the payload.
-    The document starts in *draft* status; call ``finalize_purchase_document``
-    to lock it.  Returns the newly created document with its assigned ID.
+
+    **WARNING** — when lines are included, this endpoint auto-finalizes the
+    document (status=1) on creation, regardless of any draft intent. The
+    document arrives already locked, communicated to AT, with a number assigned.
+    For a TRUE draft workflow, use ``create_purchase_document_draft`` (legacy
+    header-only) + ``add_purchase_document_line`` per line + optionally
+    ``finalize_purchase_document`` when ready.
+
+    Returns the newly created document with its assigned ID.
     """
     client = get_client(ctx)
     # v1 endpoint uses a flat payload (no JSON:API wrapper)
@@ -397,23 +405,29 @@ async def finalize_purchase_document(
 ) -> dict[str, Any]:
     """Finalize (lock) a draft purchase document making it legally binding.
 
-    Sets the document status to 1 (final). Finalized documents cannot be edited
-    or deleted — only cancelled via a credit note.
+    Uses the LEGACY ``PATCH /api/commercial_purchases_documents`` with
+    ``status: 1``. The dedicated v1 ``/finalize`` endpoint returns HTTP 500
+    (empirically confirmed 2026-05-24 against app25). Finalized documents
+    cannot be edited or deleted — they can only be voided via
+    ``void_purchase_document``.
     """
     client = get_client(ctx)
     validate_resource_id(document_id, "document_id")
-    # v1 finalize: PATCH /api/v1/commercial_purchases_documents/{id}/finalize
+    payload = {
+        "data": {
+            "type": "commercial_purchases_documents",
+            "id": document_id,
+            "attributes": {"status": 1},
+        }
+    }
     try:
-        response = await client.patch(
-            f"/api/v1/commercial_purchases_documents/{document_id}/finalize", json={}
-        )
+        response = await client.patch("/api/commercial_purchases_documents", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"finalize_purchase_document({document_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    # The finalize endpoint returns a flat JSON object (no data/attributes wrapper).
     await ctx.info(f"Purchase document {document_id} finalized")
-    return response
+    return unwrap_item(response) or (response.get("meta", {"result": "finalized"}) if isinstance(response, dict) else {"result": "finalized"})
 
 
 @write_tool
@@ -515,26 +529,209 @@ async def send_purchase_document_email(
 
 
 @write_tool
+async def create_purchase_document_draft(
+    ctx: Context,
+    document_type: Annotated[
+        str,
+        Field(
+            description=(
+                "Document type code: 'FC' = Fatura de Compra, 'VD' = Nota de"
+                " Débito Fornecedor, 'VC' = Nota de Crédito Fornecedor."
+            )
+        ),
+    ],
+    document_series_id: Annotated[
+        int, Field(description="ID of the document series (required).")
+    ],
+    date: Annotated[str, Field(description="Document date (YYYY-MM-DD).")],
+    supplier_id: Annotated[int, Field(description="Supplier ID.")],
+    external_reference: Annotated[
+        str | None,
+        Field(default=None, description="Supplier's own invoice/document number."),
+    ] = None,
+    due_date: Annotated[
+        str | None, Field(default=None, description="Payment due date (YYYY-MM-DD).")
+    ] = None,
+    payment_mechanism: Annotated[
+        str | None,
+        Field(default=None, description="Payment mechanism code (e.g. 'MO', 'TB')."),
+    ] = None,
+    notes: Annotated[
+        str | None, Field(default=None, description="Document-level notes.")
+    ] = None,
+    vat_included_prices: Annotated[
+        bool | None,
+        Field(default=None, description="Whether unit prices already include VAT."),
+    ] = None,
+) -> dict[str, Any]:
+    """Create a purchase document header in **true draft** mode (status=0).
+
+    Uses the LEGACY ``POST /api/commercial_purchases_documents`` endpoint,
+    which honors draft status (unlike the v1 atomic endpoint that
+    auto-finalizes when lines are included). After creation, add lines with
+    ``add_purchase_document_line`` and finalize with
+    ``finalize_purchase_document`` when ready.
+
+    Returns the created draft with its ID.
+    """
+    client = get_client(ctx)
+    attrs: dict[str, Any] = {
+        "document_type": document_type,
+        "document_series_id": document_series_id,
+        "date": date,
+        "supplier_id": supplier_id,
+        "status": 0,
+    }
+    for key, val in [
+        ("external_reference", external_reference),
+        ("due_date", due_date),
+        ("payment_mechanism", payment_mechanism),
+        ("notes", notes),
+        ("vat_included_prices", vat_included_prices),
+    ]:
+        if val is not None:
+            attrs[key] = val
+
+    payload = {
+        "data": {"type": "commercial_purchases_documents", "attributes": attrs}
+    }
+    try:
+        response = await client.post(
+            "/api/commercial_purchases_documents", json=payload
+        )
+    except TOCOnlineError as exc:
+        await ctx.error(f"create_purchase_document_draft failed: {exc}")
+        raise ToolError(str(exc)) from exc
+
+    result = unwrap_item(response)
+    await ctx.info(f"Purchase document draft created with id={result.get('id')}")
+    return result
+
+
+@write_tool
+async def add_purchase_document_line(
+    ctx: Context,
+    document_id: Annotated[
+        str, Field(description="ID of the draft purchase document to append a line to.")
+    ],
+    item_id: Annotated[int, Field(description="Product or Service ID.")],
+    item_type: Annotated[
+        str,
+        Field(
+            description=(
+                "'Product', 'Service', or 'Purchases::ExpenseCategory' for"
+                " expense lines."
+            )
+        ),
+    ],
+    quantity: Annotated[
+        float | None, Field(default=None, description="Quantity (defaults to 1).")
+    ] = None,
+    unit_price: Annotated[
+        float | None, Field(default=None, description="Override unit price.")
+    ] = None,
+    tax_id: Annotated[
+        int | None,
+        Field(default=None, description="Tax ID. Omit to use item default."),
+    ] = None,
+    description: Annotated[
+        str | None, Field(default=None, description="Override line description.")
+    ] = None,
+    discount: Annotated[
+        float | None, Field(default=None, description="Line discount percentage.")
+    ] = None,
+    expense_category_id: Annotated[
+        int | None,
+        Field(default=None, description="Expense category ID (when item_type is ExpenseCategory)."),
+    ] = None,
+) -> dict[str, Any]:
+    """Append a single line to an existing draft purchase document.
+
+    Uses ``POST /api/commercial_purchases_document_lines`` (legacy endpoint).
+    The target document must be in draft status — finalized documents cannot
+    have lines added.
+    """
+    client = get_client(ctx)
+    validate_resource_id(document_id, "document_id")
+    line_attrs: dict[str, Any] = {
+        "document_id": int(document_id),
+        "item_id": item_id,
+        "item_type": item_type,
+    }
+    for key, val in [
+        ("quantity", quantity),
+        ("unit_price", unit_price),
+        ("tax_id", tax_id),
+        ("description", description),
+        ("discount", discount),
+        ("expense_category_id", expense_category_id),
+    ]:
+        if val is not None:
+            line_attrs[key] = val
+
+    payload = {
+        "data": {
+            "type": "commercial_purchases_document_lines",
+            "attributes": line_attrs,
+        }
+    }
+    try:
+        response = await client.post(
+            "/api/commercial_purchases_document_lines", json=payload
+        )
+    except TOCOnlineError as exc:
+        await ctx.error(f"add_purchase_document_line failed: {exc}")
+        raise ToolError(str(exc)) from exc
+
+    result = unwrap_item(response)
+    await ctx.info(f"Line added to draft {document_id}: line_id={result.get('id')}")
+    return result
+
+
+@write_tool
 async def void_purchase_document(
     ctx: Context,
     document_id: Annotated[
         str, Field(description="The TOC Online purchase document ID to void (anular).")
     ],
+    voided_reason: Annotated[
+        str,
+        Field(
+            description=(
+                "Reason for voiding the document (required for audit trail). "
+                "The v1 /void endpoint silently discards this; we use the legacy "
+                "PATCH endpoint which actually persists the reason."
+            )
+        ),
+    ],
 ) -> dict[str, Any]:
     """Void (anular) a finalized purchase document.
 
+    Uses the LEGACY ``PATCH /api/commercial_purchases_documents`` with
+    ``status: 4`` + ``voided_reason``. The dedicated v1 ``/void`` endpoint
+    DOES flip status to 4 but silently drops the voided_reason field
+    (empirically confirmed 2026-05-24 against app25). For audit compliance
+    the reason must persist, so we route through legacy.
+
     Only finalized documents can be voided. Voiding is irreversible.
-    Returns the API response on success.
     """
     client = get_client(ctx)
     validate_resource_id(document_id, "document_id")
+    payload = {
+        "data": {
+            "type": "commercial_purchases_documents",
+            "id": document_id,
+            "attributes": {"status": 4, "voided_reason": voided_reason},
+        }
+    }
     try:
-        response = await client.patch(
-            f"/api/v1/commercial_purchases_documents/{document_id}/void", json={}
-        )
+        response = await client.patch("/api/commercial_purchases_documents", json=payload)
     except TOCOnlineError as exc:
         await ctx.error(f"void_purchase_document({document_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
     await ctx.info(f"Purchase document {document_id} voided")
-    return response.get("meta", response.get("data", {"result": "voided"}))
+    result = unwrap_item(response)
+    if result:
+        return result
+    return response.get("meta", {"result": "voided"}) if isinstance(response, dict) else {"result": "voided"}

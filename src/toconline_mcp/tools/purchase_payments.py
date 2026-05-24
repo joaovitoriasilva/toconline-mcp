@@ -41,6 +41,8 @@ from toconline_mcp.tools._base import (
     TOCOnlineError,
     ToolError,
     get_client,
+    unwrap_item,
+    unwrap_list,
     validate_resource_id,
 )
 
@@ -247,13 +249,7 @@ async def list_purchase_payments(
         await ctx.error(f"list_purchase_payments failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    data = response.get("data", [])
-    if not isinstance(data, list):
-        data = [data]
-
-    items = [{"id": item.get("id"), **item.get("attributes", {})} for item in data]
-    meta = response.get("meta", {})
-    return {"data": items, "meta": meta}
+    return unwrap_list(response)
 
 
 @mcp.tool()
@@ -275,8 +271,7 @@ async def get_purchase_payment(
         await ctx.error(f"get_purchase_payment({payment_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    item = response.get("data", {})
-    return {"id": item.get("id"), **item.get("attributes", {})}
+    return unwrap_item(response)
 
 
 @write_tool
