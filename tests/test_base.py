@@ -1,7 +1,7 @@
 """Tests for toconline_mcp.tools._base module.
 
-Covers validate_resource_id (input sanitisation) and get_client
-(lifespan-context accessor).
+Covers validate_resource_id (input sanitisation), get_client
+(lifespan-context accessor) and flatten_items / response_meta (response parsing).
 """
 
 from __future__ import annotations
@@ -11,7 +11,12 @@ from unittest.mock import MagicMock
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
-from toconline_mcp.tools._base import get_client, validate_resource_id
+from toconline_mcp.tools._base import (
+    flatten_items,
+    get_client,
+    response_meta,
+    validate_resource_id,
+)
 
 # ---------------------------------------------------------------------------
 # TestValidateResourceId
@@ -88,3 +93,43 @@ class TestGetClient:
         """get_client extracts the TOCOnlineClient from the request context."""
         result = get_client(mock_ctx)
         assert result is mock_api_client
+
+
+# ---------------------------------------------------------------------------
+# TestFlattenItems
+# ---------------------------------------------------------------------------
+
+
+class TestFlattenItems:
+    """Tests for flatten_items / response_meta — JSON:API and bare v1 shapes."""
+
+    def test_jsonapi_list_is_flattened(self) -> None:
+        response = {
+            "data": [{"id": "1", "type": "x", "attributes": {"a": 1}}],
+            "meta": {"total": 1},
+        }
+        assert flatten_items(response) == [{"id": "1", "a": 1}]
+        assert response_meta(response) == {"total": 1}
+
+    def test_jsonapi_single_record_is_flattened(self) -> None:
+        response = {"data": {"id": "1", "attributes": {"a": 1}}}
+        assert flatten_items(response) == [{"id": "1", "a": 1}]
+
+    def test_bare_v1_list_is_returned_as_is(self) -> None:
+        """/api/v1/ list endpoints return a bare JSON array of flat records."""
+        response = [
+            {"id": 1, "document_no": "FR 1/1"},
+            {"id": 2, "document_no": "FR 1/2"},
+        ]
+        assert flatten_items(response) == response
+        assert response_meta(response) == {}
+
+    def test_bare_v1_record_with_its_own_data_field(self) -> None:
+        """A v1 record may carry a "data" field; it must not be read as an envelope."""
+        response = {"id": 7, "document_no": "FR 1/7", "data": {}}
+        assert flatten_items(response) == [response]
+        assert response_meta(response) == {}
+
+    def test_empty_list(self) -> None:
+        assert flatten_items([]) == []
+        assert flatten_items({"data": []}) == []

@@ -30,7 +30,9 @@ from toconline_mcp.app import mcp, write_tool
 from toconline_mcp.tools._base import (
     TOCOnlineError,
     ToolError,
+    flatten_items,
     get_client,
+    response_meta,
     validate_resource_id,
 )
 
@@ -248,13 +250,7 @@ async def list_sales_receipts(
         await ctx.error(f"list_sales_receipts failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    data = response.get("data", [])
-    if not isinstance(data, list):
-        data = [data]
-
-    items = [{"id": item.get("id"), **item.get("attributes", {})} for item in data]
-    meta = response.get("meta", {})
-    return {"data": items, "meta": meta}
+    return {"data": flatten_items(response), "meta": response_meta(response)}
 
 
 @mcp.tool()
@@ -272,8 +268,8 @@ async def get_sales_receipt(
         await ctx.error(f"get_sales_receipt({receipt_id}) failed: {exc}")
         raise ToolError(str(exc)) from exc
 
-    item = response.get("data", {})
-    return {"id": item.get("id"), **item.get("attributes", {})}
+    items = flatten_items(response)
+    return items[0] if items else {}
 
 
 @write_tool

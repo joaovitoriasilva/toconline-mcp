@@ -27,6 +27,17 @@ from toconline_mcp.tools.sales_receipts import (
 class TestListSalesReceipts:
     """Tests for the list_sales_receipts read tool."""
 
+    async def test_accepts_bare_v1_list(self, mock_ctx, mock_api_client):
+        """The /api/v1/ endpoint returns a bare JSON array of flat records."""
+        mock_api_client.get.return_value = [
+            {"id": 100, "document_no": "FR 2025/1", "gross_total": 12.3},
+        ]
+        result = await list_sales_receipts(mock_ctx)
+        assert result == {
+            "data": [{"id": 100, "document_no": "FR 2025/1", "gross_total": 12.3}],
+            "meta": {},
+        }
+
     async def test_returns_transformed_items(self, mock_ctx, mock_api_client):
         """Happy path: JSON:API response is flattened into {id, **attributes} items."""
         mock_api_client.get.return_value = {
@@ -95,6 +106,16 @@ class TestListSalesReceipts:
 
 class TestGetSalesReceipt:
     """Tests for the get_sales_receipt read tool."""
+
+    async def test_accepts_bare_v1_object(self, mock_ctx, mock_api_client):
+        """The /api/v1/ endpoint returns a bare object with top-level fields."""
+        mock_api_client.get.return_value = {
+            "id": 100,
+            "document_no": "FR 2025/1",
+            "data": {},
+        }
+        result = await get_sales_receipt(mock_ctx, receipt_id="100")
+        assert result == {"id": 100, "document_no": "FR 2025/1", "data": {}}
 
     async def test_returns_flattened_receipt(self, mock_ctx, mock_api_client):
         """Happy path: data dict is flattened into {id, **attributes}."""
